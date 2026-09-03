@@ -1,0 +1,8 @@
+{
+  "name": "Remix Mô hình Toán học 2D \u0026 3D",
+  "description": "Mô hình trực quan 2D và 3D cho chương trình Toán học THPT (GDPT 2018) bao gồm hàm số, lượng giác, vectơ, đạo hàm, tích phân, khối tròn xoay và khối đa diện.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
