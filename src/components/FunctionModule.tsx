@@ -3,6 +3,7 @@ import katex from "katex";
 import { Maximize2, Minimize2, Download, Check } from "lucide-react";
 import { downloadSvgAsPng } from "../utils/exportImage";
 import { useTheme, ThemeColors } from "../context/ThemeContext";
+import { formatPiOrFrac, analyzeGeneralFunction } from "../utils/mathEngine";
 
 /* ============================================================
    DESIGN TOKENS & UTILITIES (ADAPTIVE THEME)
@@ -40,17 +41,9 @@ function fmt(n: number, d = 2): string {
   return Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(d);
 }
 
-function fmtFrac(n: number): string {
+function fmtFrac(n: number, isTrig = false): string {
   if (!Number.isFinite(n)) return "—";
-  if (Number.isInteger(n)) return String(n);
-  // Simple fraction approximation for display
-  for (let denom = 2; denom <= 12; denom++) {
-    const num = Math.round(n * denom);
-    if (Math.abs(n - num / denom) < 1e-4) {
-      return `\\frac{${num}}{${denom}}`;
-    }
-  }
-  return fmt(n, 2);
+  return formatPiOrFrac(n, isTrig);
 }
 
 function MathDisplay({
@@ -708,10 +701,11 @@ export interface BBTPoint {
 }
 
 export interface BBTSegment {
-  sign: "+" | "-";
-  trend: "up" | "down";
+  sign: "+" | "-" | "";
+  trend: "up" | "down" | "none";
   startLevel: "top" | "mid" | "bottom";
   endLevel: "top" | "mid" | "bottom";
+  isUndefined?: boolean;
 }
 
 export interface BBTData {
@@ -813,11 +807,19 @@ function parseTex(raw: string): {
 } {
   if (!raw) return { type: "plain", text: "", num: "", den: "" };
   let str = raw.trim();
+
+  // Convert approximations of pi to exact pi notation
+  str = str.replace(/-6[.,]28\d*\b/g, "−2\\pi").replace(/6[.,]28\d*\b/g, "2\\pi");
+  str = str.replace(/-3[.,]14\d*\b/g, "−\\pi").replace(/3[.,]14\d*\b/g, "\\pi");
+  str = str.replace(/-4[.,]71\d*\b/g, "-\\frac{3\\pi}{2}").replace(/4[.,]71\d*\b/g, "\\frac{3\\pi}{2}");
+  str = str.replace(/-1[.,]57\d*\b/g, "-\\frac{\\pi}{2}").replace(/1[.,]57\d*\b/g, "\\frac{\\pi}{2}");
+
   str = str.replace(/-\\infty/g, "−∞").replace(/\+\\infty/g, "+∞").replace(/\\infty/g, "∞");
   str = str.replace(/\\sqrt\{([^}]+)\}/g, "√$1");
   str = str.replace(/\\text\{([^}]+)\}/g, "$1");
   str = str.replace(/\\pm/g, "±");
   str = str.replace(/\\left|\\right/g, "");
+  str = str.replace(/\\pi/g, "π").replace(/\bpi\b/gi, "π");
 
   const fracRegex = /^([+-]?)\s*\\frac\{([^}]+)\}\{([^}]+)\}$/;
   const m = str.match(fracRegex);
@@ -828,9 +830,13 @@ function parseTex(raw: string): {
       .replace(/-\\infty/g, "−∞")
       .replace(/\+\\infty/g, "+∞")
       .replace(/\\sqrt\{([^}]+)\}/g, "√$1")
+      .replace(/\\pi/g, "π")
+      .replace(/\bpi\b/gi, "π")
       .replace(/-/g, "−");
     const den = m[3]
       .replace(/\\sqrt\{([^}]+)\}/g, "√$1")
+      .replace(/\\pi/g, "π")
+      .replace(/\bpi\b/gi, "π")
       .replace(/-/g, "−");
     return { type: "fraction", text: `${sign}${num}/${den}`, sign, num, den };
   }
@@ -1241,11 +1247,38 @@ export function VariationTable({ data, columns }: BBTProps) {
             >
               <path d="M 0 1.5 L 9 5 L 0 8.5 z" fill="#000000" />
             </marker>
+            {/* Hatching pattern for undefined domain regions */}
+            <pattern
+              id="bbt-hatch"
+              width="8"
+              height="8"
+              patternTransform="rotate(45 0 0)"
+              patternUnits="userSpaceOnUse"
+            >
+              <line x1="0" y1="0" x2="0" y2="8" stroke="#94a3b8" strokeWidth="1.4" />
+            </pattern>
           </defs>
 
           {/* 1. White Backgrounds */}
           <rect x="0" y="0" width={SVG_W} height={SVG_H} fill="#ffffff" />
           <rect x="0" y="0" width={HDR_W} height={SVG_H} fill="#ffffff" />
+
+          {/* Hatched regions for intervals outside domain (không xác định) */}
+          {segments.map((seg, i) => {
+            if (!seg.isUndefined) return null;
+            const x1 = getPointX(i);
+            const x2 = getPointX(i + 1);
+            return (
+              <rect
+                key={`hatch-${i}`}
+                x={x1}
+                y={Y_LINE_1}
+                width={x2 - x1}
+                height={SVG_H - Y_LINE_1}
+                fill="url(#bbt-hatch)"
+              />
+            );
+          })}
 
           {/* 2. Black Grid Dividers */}
           <line x1="0" y1={Y_LINE_1} x2={SVG_W} y2={Y_LINE_1} stroke="#000000" strokeWidth="1.4" />
@@ -1309,7 +1342,7 @@ export function VariationTable({ data, columns }: BBTProps) {
           {/* 5. ROW 2 (y' values: 0, || in Black) */}
           {points.map((pt, i) => {
             const x = getPointX(i);
-            if (pt.isDiscontinuity) {
+            if (pt.isDiscontinuity || pt.yPrime === "||") {
               return (
                 <g key={`disc-${i}`}>
                   <line x1={x - 2.5} y1={Y_LINE_1} x2={x - 2.5} y2={SVG_H} stroke="#000000" strokeWidth="1.4" />
@@ -1338,6 +1371,7 @@ export function VariationTable({ data, columns }: BBTProps) {
 
           {/* Signs (+ / −) in Black in exact center of intervals */}
           {segments.map((seg, i) => {
+            if (seg.isUndefined || !seg.sign) return null;
             const x1 = getPointX(i);
             const x2 = getPointX(i + 1);
             const xMid = (x1 + x2) / 2;
@@ -1360,6 +1394,7 @@ export function VariationTable({ data, columns }: BBTProps) {
           {/* 6. ROW 3 (y variation arrows and values in Black) */}
           {/* Slanted Vector Arrows in Black */}
           {segments.map((seg, i) => {
+            if (seg.isUndefined || seg.trend === "none") return null;
             const p1 = points[i];
             const p2 = points[i + 1];
             const x1 = getPointX(i);
@@ -1367,8 +1402,8 @@ export function VariationTable({ data, columns }: BBTProps) {
             const y1 = getYLevel(seg.startLevel);
             const y2 = getYLevel(seg.endLevel);
 
-            const xOffsetStart = p1.isDiscontinuity ? 26 : 22;
-            const xOffsetEnd = p2.isDiscontinuity ? 26 : 22;
+            const xOffsetStart = p1.isDiscontinuity || p1.yPrime === "||" ? 26 : 22;
+            const xOffsetEnd = p2.isDiscontinuity || p2.yPrime === "||" ? 26 : 22;
 
             const startX = x1 + xOffsetStart;
             const endX = x2 - xOffsetEnd;
@@ -1420,6 +1455,7 @@ export function VariationTable({ data, columns }: BBTProps) {
               );
             }
 
+            if (!pt.yTex) return null;
             const yPos = getYLevel(pt.yLevel);
 
             return (
@@ -1446,6 +1482,8 @@ export function VariationTable({ data, columns }: BBTProps) {
 export interface FunctionAnalysisResult {
   fnType: "quadratic" | "cubic" | "biquadratic" | "rational11" | "rational21" | "general";
   domain: string; // Tập xác định
+  domainExplanation?: string;
+  domainConditionTex?: string;
   derivativeTex: string; // Công thức đạo hàm
   derivativeRootsTex: string[]; // Nghiệm y' = 0
   extrema: { type: "Cực đại" | "Cực tiểu" | "Đỉnh Parabol"; x: number; y: number; label: string }[];
@@ -1942,6 +1980,15 @@ function analyzeRational11(a: number, b: number, c: number, d: number): Function
   const tcnY = a / safeC;
   const tcnTex = fmtFrac(tcnY);
 
+  const leftLimVal = fn(pole - 1e-4);
+  const rightLimVal = fn(pole + 1e-4);
+  const leftIsPlus = leftLimVal > 0;
+  const rightIsPlus = rightLimVal > 0;
+  const leftLimitTex = leftIsPlus ? "+\\infty" : "-\\infty";
+  const rightLimitTex = rightIsPlus ? "+\\infty" : "-\\infty";
+  const leftLimitLevel: "top" | "bottom" = leftIsPlus ? "top" : "bottom";
+  const rightLimitLevel: "top" | "bottom" = rightIsPlus ? "top" : "bottom";
+
   const isInc = det > 0;
   const monotonicity = isInc
     ? {
@@ -1953,52 +2000,39 @@ function analyzeRational11(a: number, b: number, c: number, d: number): Function
         decreasing: [`(-\\infty; ${poleTex})`, `(${poleTex}; +\\infty)`],
       };
 
-  const bbtData: BBTData = isInc
-    ? {
-        points: [
-          { xTex: "-\\infty", yTex: tcnTex, yLevel: "mid" },
-          {
-            xTex: poleTex,
-            yPrime: "||",
-            isDiscontinuity: true,
-            leftLimit: { tex: "+\\infty", level: "top" },
-            rightLimit: { tex: "-\\infty", level: "bottom" },
-          },
-          { xTex: "+\\infty", yTex: tcnTex, yLevel: "mid" },
+  const bbtData: BBTData = {
+    points: [
+      { xTex: "-\\infty", yTex: tcnTex, yLevel: "mid" },
+      {
+        xTex: poleTex,
+        yPrime: "||",
+        isDiscontinuity: true,
+        leftLimit: { tex: leftLimitTex, level: leftLimitLevel },
+        rightLimit: { tex: rightLimitTex, level: rightLimitLevel },
+      },
+      { xTex: "+\\infty", yTex: tcnTex, yLevel: "mid" },
+    ],
+    segments: isInc
+      ? [
+          { sign: "+", trend: "up", startLevel: "mid", endLevel: leftLimitLevel },
+          { sign: "+", trend: "up", startLevel: rightLimitLevel, endLevel: "mid" },
+        ]
+      : [
+          { sign: "-", trend: "down", startLevel: "mid", endLevel: leftLimitLevel },
+          { sign: "-", trend: "down", startLevel: rightLimitLevel, endLevel: "mid" },
         ],
-        segments: [
-          { sign: "+", trend: "up", startLevel: "mid", endLevel: "top" },
-          { sign: "+", trend: "up", startLevel: "bottom", endLevel: "mid" },
-        ],
-      }
-    : {
-        points: [
-          { xTex: "-\\infty", yTex: tcnTex, yLevel: "mid" },
-          {
-            xTex: poleTex,
-            yPrime: "||",
-            isDiscontinuity: true,
-            leftLimit: { tex: "-\\infty", level: "bottom" },
-            rightLimit: { tex: "+\\infty", level: "top" },
-          },
-          { xTex: "+\\infty", yTex: tcnTex, yLevel: "mid" },
-        ],
-        segments: [
-          { sign: "-", trend: "down", startLevel: "mid", endLevel: "bottom" },
-          { sign: "-", trend: "down", startLevel: "top", endLevel: "mid" },
-        ],
-      };
+  };
 
   const bbtColumns: BBTColumn[] = isInc
     ? [
-        { x: "-\\infty", yPrime: "+", y: tcnTex, yType: "mid" },
-        { x: poleTex, yPrime: "||", y: "", yType: "asymptote", yLeft: "+\\infty", yRight: "-\\infty" },
-        { x: "+\\infty", yPrime: "+", y: tcnTex, yType: "mid" },
+        { x: "-\\infty", yPrime: "", y: tcnTex, yType: "mid" },
+        { x: poleTex, yPrime: "||", y: "", yType: "asymptote", yLeft: leftLimitTex, yRight: rightLimitTex },
+        { x: "+\\infty", yPrime: "", y: tcnTex, yType: "mid" },
       ]
     : [
-        { x: "-\\infty", yPrime: "-", y: tcnTex, yType: "mid" },
-        { x: poleTex, yPrime: "||", y: "", yType: "asymptote", yLeft: "-\\infty", yRight: "+\\infty" },
-        { x: "+\\infty", yPrime: "-", y: tcnTex, yType: "mid" },
+        { x: "-\\infty", yPrime: "", y: tcnTex, yType: "mid" },
+        { x: poleTex, yPrime: "||", y: "", yType: "asymptote", yLeft: leftLimitTex, yRight: rightLimitTex },
+        { x: "+\\infty", yPrime: "", y: tcnTex, yType: "mid" },
       ];
 
   return {
@@ -2089,6 +2123,15 @@ function analyzeRational21(a: number, b: number, c: number, p: number, q: number
 
     derivativeRootsTex = [`x_1 = ${fmtFrac(x1)}`, `x_2 = ${fmtFrac(x2)}`];
 
+    const leftLimVal = fn(pole - 1e-4);
+    const rightLimVal = fn(pole + 1e-4);
+    const leftIsPlus = leftLimVal > 0;
+    const rightIsPlus = rightLimVal > 0;
+    const leftLimitTex = leftIsPlus ? "+\\infty" : "-\\infty";
+    const rightLimitTex = rightIsPlus ? "+\\infty" : "-\\infty";
+    const leftLimitLevel: "top" | "bottom" = leftIsPlus ? "top" : "bottom";
+    const rightLimitLevel: "top" | "bottom" = rightIsPlus ? "top" : "bottom";
+
     if (dA > 0) {
       // Branch left has local max x1, branch right has local min x2
       extrema.push({ type: "Cực đại", x: x1, y: y1, label: `CĐ(${fmt(x1)}; ${fmt(y1)})` });
@@ -2107,26 +2150,26 @@ function analyzeRational21(a: number, b: number, c: number, p: number, q: number
             xTex: poleTex,
             yPrime: "||",
             isDiscontinuity: true,
-            leftLimit: { tex: "-\\infty", level: "bottom" },
-            rightLimit: { tex: "+\\infty", level: "top" },
+            leftLimit: { tex: leftLimitTex, level: leftLimitLevel },
+            rightLimit: { tex: rightLimitTex, level: rightLimitLevel },
           },
           { xTex: fmtFrac(x2), yPrime: "0", yTex: fmtFrac(y2), yLevel: "bottom", yLabel: "CT" },
           { xTex: "+\\infty", yTex: "+\\infty", yLevel: "top" },
         ],
         segments: [
           { sign: "+", trend: "up", startLevel: "bottom", endLevel: "top" },
-          { sign: "-", trend: "down", startLevel: "top", endLevel: "bottom" },
-          { sign: "-", trend: "down", startLevel: "top", endLevel: "bottom" },
+          { sign: "-", trend: "down", startLevel: "top", endLevel: leftLimitLevel },
+          { sign: "-", trend: "down", startLevel: rightLimitLevel, endLevel: "bottom" },
           { sign: "+", trend: "up", startLevel: "bottom", endLevel: "top" },
         ],
       };
 
       bbtColumns = [
-        { x: "-\\infty", yPrime: "+", y: "-\\infty", yType: "limit-minus" },
+        { x: "-\\infty", yPrime: "", y: "-\\infty", yType: "limit-minus" },
         { x: fmtFrac(x1), yPrime: "0", y: fmtFrac(y1), yType: "peak" },
-        { x: poleTex, yPrime: "||", y: "", yType: "asymptote", yLeft: "-\\infty", yRight: "+\\infty" },
+        { x: poleTex, yPrime: "||", y: "", yType: "asymptote", yLeft: leftLimitTex, yRight: rightLimitTex },
         { x: fmtFrac(x2), yPrime: "0", y: fmtFrac(y2), yType: "valley" },
-        { x: "+\\infty", yPrime: "+", y: "+\\infty", yType: "limit-plus" },
+        { x: "+\\infty", yPrime: "", y: "+\\infty", yType: "limit-plus" },
       ];
     } else {
       extrema.push({ type: "Cực tiểu", x: x1, y: y1, label: `CT(${fmt(x1)}; ${fmt(y1)})` });
@@ -2145,30 +2188,39 @@ function analyzeRational21(a: number, b: number, c: number, p: number, q: number
             xTex: poleTex,
             yPrime: "||",
             isDiscontinuity: true,
-            leftLimit: { tex: "+\\infty", level: "top" },
-            rightLimit: { tex: "-\\infty", level: "bottom" },
+            leftLimit: { tex: leftLimitTex, level: leftLimitLevel },
+            rightLimit: { tex: rightLimitTex, level: rightLimitLevel },
           },
           { xTex: fmtFrac(x2), yPrime: "0", yTex: fmtFrac(y2), yLevel: "top", yLabel: "CĐ" },
           { xTex: "+\\infty", yTex: "-\\infty", yLevel: "bottom" },
         ],
         segments: [
           { sign: "-", trend: "down", startLevel: "top", endLevel: "bottom" },
-          { sign: "+", trend: "up", startLevel: "bottom", endLevel: "top" },
-          { sign: "+", trend: "up", startLevel: "bottom", endLevel: "top" },
+          { sign: "+", trend: "up", startLevel: "bottom", endLevel: leftLimitLevel },
+          { sign: "+", trend: "up", startLevel: rightLimitLevel, endLevel: "top" },
           { sign: "-", trend: "down", startLevel: "top", endLevel: "bottom" },
         ],
       };
 
       bbtColumns = [
-        { x: "-\\infty", yPrime: "-", y: "+\\infty", yType: "limit-plus" },
+        { x: "-\\infty", yPrime: "", y: "+\\infty", yType: "limit-plus" },
         { x: fmtFrac(x1), yPrime: "0", y: fmtFrac(y1), yType: "valley" },
-        { x: poleTex, yPrime: "||", y: "", yType: "asymptote", yLeft: "+\\infty", yRight: "-\\infty" },
+        { x: poleTex, yPrime: "||", y: "", yType: "asymptote", yLeft: leftLimitTex, yRight: rightLimitTex },
         { x: fmtFrac(x2), yPrime: "0", y: fmtFrac(y2), yType: "peak" },
-        { x: "+\\infty", yPrime: "-", y: "-\\infty", yType: "limit-minus" },
+        { x: "+\\infty", yPrime: "", y: "-\\infty", yType: "limit-minus" },
       ];
     }
   } else {
     derivativeRootsTex = ["\\text{Vô nghiệm (hàm số không có cực trị)}"];
+    const leftLimVal = fn(pole - 1e-4);
+    const rightLimVal = fn(pole + 1e-4);
+    const leftIsPlus = leftLimVal > 0;
+    const rightIsPlus = rightLimVal > 0;
+    const leftLimitTex = leftIsPlus ? "+\\infty" : "-\\infty";
+    const rightLimitTex = rightIsPlus ? "+\\infty" : "-\\infty";
+    const leftLimitLevel: "top" | "bottom" = leftIsPlus ? "top" : "bottom";
+    const rightLimitLevel: "top" | "bottom" = rightIsPlus ? "top" : "bottom";
+
     if (dA > 0) {
       monotonicity = {
         increasing: [`(-\\infty; ${poleTex})`, `(${poleTex}; +\\infty)`],
@@ -2181,20 +2233,20 @@ function analyzeRational21(a: number, b: number, c: number, p: number, q: number
             xTex: poleTex,
             yPrime: "||",
             isDiscontinuity: true,
-            leftLimit: { tex: "+\\infty", level: "top" },
-            rightLimit: { tex: "-\\infty", level: "bottom" },
+            leftLimit: { tex: leftLimitTex, level: leftLimitLevel },
+            rightLimit: { tex: rightLimitTex, level: rightLimitLevel },
           },
           { xTex: "+\\infty", yTex: "+\\infty", yLevel: "top" },
         ],
         segments: [
-          { sign: "+", trend: "up", startLevel: "bottom", endLevel: "top" },
-          { sign: "+", trend: "up", startLevel: "bottom", endLevel: "top" },
+          { sign: "+", trend: "up", startLevel: "bottom", endLevel: leftLimitLevel },
+          { sign: "+", trend: "up", startLevel: rightLimitLevel, endLevel: "top" },
         ],
       };
       bbtColumns = [
-        { x: "-\\infty", yPrime: "+", y: "-\\infty", yType: "limit-minus" },
-        { x: poleTex, yPrime: "||", y: "", yType: "asymptote", yLeft: "+\\infty", yRight: "-\\infty" },
-        { x: "+\\infty", yPrime: "+", y: "+\\infty", yType: "limit-plus" },
+        { x: "-\\infty", yPrime: "", y: "-\\infty", yType: "limit-minus" },
+        { x: poleTex, yPrime: "||", y: "", yType: "asymptote", yLeft: leftLimitTex, yRight: rightLimitTex },
+        { x: "+\\infty", yPrime: "", y: "+\\infty", yType: "limit-plus" },
       ];
     } else {
       monotonicity = {
@@ -2208,20 +2260,20 @@ function analyzeRational21(a: number, b: number, c: number, p: number, q: number
             xTex: poleTex,
             yPrime: "||",
             isDiscontinuity: true,
-            leftLimit: { tex: "-\\infty", level: "bottom" },
-            rightLimit: { tex: "+\\infty", level: "top" },
+            leftLimit: { tex: leftLimitTex, level: leftLimitLevel },
+            rightLimit: { tex: rightLimitTex, level: rightLimitLevel },
           },
           { xTex: "+\\infty", yTex: "-\\infty", yLevel: "bottom" },
         ],
         segments: [
-          { sign: "-", trend: "down", startLevel: "top", endLevel: "bottom" },
-          { sign: "-", trend: "down", startLevel: "top", endLevel: "bottom" },
+          { sign: "-", trend: "down", startLevel: "top", endLevel: leftLimitLevel },
+          { sign: "-", trend: "down", startLevel: rightLimitLevel, endLevel: "bottom" },
         ],
       };
       bbtColumns = [
-        { x: "-\\infty", yPrime: "-", y: "+\\infty", yType: "limit-plus" },
-        { x: poleTex, yPrime: "||", y: "", yType: "asymptote", yLeft: "-\\infty", yRight: "+\\infty" },
-        { x: "+\\infty", yPrime: "-", y: "-\\infty", yType: "limit-minus" },
+        { x: "-\\infty", yPrime: "", y: "+\\infty", yType: "limit-plus" },
+        { x: poleTex, yPrime: "||", y: "", yType: "asymptote", yLeft: leftLimitTex, yRight: rightLimitTex },
+        { x: "+\\infty", yPrime: "", y: "-\\infty", yType: "limit-minus" },
       ];
     }
   }
@@ -2320,6 +2372,12 @@ function parseFormulaToAnalysis(expr: string): FunctionAnalysisResult | null {
     const b = parseFloat(bRaw) || 0;
     const c = parseFloat(quadMatch[3] || "0") || 0;
     return analyzeQuadratic(a, b, c);
+  }
+
+  // 5. Hàm số bất kỳ tổng quát: đa thức bậc n, phân thức tổng quát, căn thức, lượng giác, mũ, logarit
+  const generalResult = analyzeGeneralFunction(expr);
+  if (generalResult) {
+    return generalResult;
   }
 
   return null;
@@ -2427,9 +2485,84 @@ export function FunctionModule() {
                 <span className="w-1.5 h-2.5 bg-amber-400 rounded-3xs inline-block"></span>
                 NHẬP HÀM SỐ
               </span>
-              <span className="text-[8.5px] font-mono text-slate-400 bg-slate-900 px-1.5 py-0.5 rounded border border-slate-800">
-                f(x)
+              <span className="text-[8.5px] font-mono text-amber-300 bg-amber-500/10 px-1.5 py-0.5 rounded border border-amber-500/30 font-bold">
+                {/sin|cos|tan|cot|\\pi|\bpi\b/i.test(customLatex)
+                  ? "LƯỢNG GIÁC (π)"
+                  : /sqrt|cbrt/i.test(customLatex)
+                  ? "CĂN THỨC"
+                  : /ln|log/i.test(customLatex)
+                  ? "LOGARIT"
+                  : /e\^|\bexp\b/i.test(customLatex)
+                  ? "HÀM SỐ MŨ"
+                  : /\\frac|\//i.test(customLatex)
+                  ? "PHÂN THỨC"
+                  : analysis.fnType === "quadratic"
+                  ? "BẬC 2"
+                  : analysis.fnType === "cubic"
+                  ? "BẬC 3"
+                  : analysis.fnType === "biquadratic"
+                  ? "TRÙNG PHƯƠNG"
+                  : "ĐA THỨC BẬC N"}
               </span>
+            </div>
+
+            {/* Mẫu hàm số nhanh */}
+            <div>
+              <div className="text-[9px] text-slate-400 font-mono mb-1 flex items-center justify-between">
+                <span>Chọn mẫu hàm số:</span>
+                <span className="text-amber-400/80 text-[8.5px]">GDPT 2018</span>
+              </div>
+              <select
+                id="select-function-preset"
+                value=""
+                onChange={(e) => {
+                  if (e.target.value) setCustomLatex(e.target.value);
+                }}
+                className="w-full bg-slate-950 border border-slate-700 rounded-2xs px-2 py-1 text-[10.5px] font-mono text-slate-200 outline-none focus:border-amber-500 cursor-pointer"
+              >
+                <option value="" disabled>-- Mẫu hàm số mẫu --</option>
+                <optgroup label="📐 Lượng giác (Hiện số π)">
+                  <option value="\\sin(x)">y = sin(x)</option>
+                  <option value="\\cos(x)">y = cos(x)</option>
+                  <option value="\\tan(x)">y = tan(x)</option>
+                  <option value="\\cot(x)">y = cot(x)</option>
+                  <option value="\\sin(2x)">y = sin(2x)</option>
+                  <option value="2\\cos(x) - 1">y = 2cos(x) - 1</option>
+                  <option value="\\sin(x) + \\cos(x)">y = sin(x) + cos(x)</option>
+                </optgroup>
+                <optgroup label="📚 Đa thức bậc n">
+                  <option value="x^2 - 4x + 3">y = x² - 4x + 3 (Bậc 2)</option>
+                  <option value="x^3 - 3x^2 + 2">y = x³ - 3x² + 2 (Bậc 3)</option>
+                  <option value="x^4 - 2x^2 - 1">y = x⁴ - 2x² - 1 (Trùng phương)</option>
+                  <option value="x^5 - 5x + 1">y = x⁵ - 5x + 1 (Bậc 5)</option>
+                  <option value="x^4 - 4x^3 + 2">y = x⁴ - 4x³ + 2 (Bậc 4 tổng quát)</option>
+                </optgroup>
+                <optgroup label="➗ Phân thức tổng quát">
+                  <option value="\\frac{2x + 1}{x - 1}">y = (2x+1)/(x-1) [Bậc 1/1]</option>
+                  <option value="\\frac{x^2 - x + 1}{x - 1}">y = (x²-x+1)/(x-1) [Bậc 2/1]</option>
+                  <option value="\\frac{x^2 - 1}{x^2 + 1}">y = (x²-1)/(x²+1) [Bậc 2/2]</option>
+                  <option value="\\frac{1}{x^2 - 4}">y = 1/(x²-4) [Bậc 1/2]</option>
+                </optgroup>
+                <optgroup label="√ Căn thức">
+                  <option value="\\sqrt{4 - x^2}">y = √(4 - x²)</option>
+                  <option value="\\sqrt{x^2 - 4}">y = √(x² - 4)</option>
+                  <option value="\\sqrt{x}">y = √x</option>
+                  <option value="x\\sqrt{x + 1}">y = x√(x + 1)</option>
+                </optgroup>
+                <optgroup label="📈 Mũ & Logarit">
+                  <option value="e^x">y = eˣ (Đồng biến)</option>
+                  <option value="2^x">y = 2ˣ (Đồng biến)</option>
+                  <option value="(1/2)^x">y = (1/2)ˣ (Nghịch biến)</option>
+                  <option value="e^{-x^2}">y = e^(-x²)</option>
+                  <option value="x e^x">y = x·eˣ</option>
+                  <option value="\\ln(x)">y = ln(x) (Đồng biến, D=(0;+∞))</option>
+                  <option value="\\log_2(x)">y = log₂(x) (Đồng biến)</option>
+                  <option value="\\log_{0.5}(x)">y = log₀.₅(x) (Nghịch biến)</option>
+                  <option value="\\log(x)">y = log(x) [Cơ số 10]</option>
+                  <option value="\\ln(x^2 + 1)">y = ln(x² + 1)</option>
+                  <option value="\\ln(4 - x^2)">y = ln(4 - x²)</option>
+                </optgroup>
+              </select>
             </div>
 
             <div>
@@ -2441,9 +2574,51 @@ export function FunctionModule() {
                 id="input-function-formula"
                 value={customLatex}
                 onChange={(e) => setCustomLatex(e.target.value)}
-                placeholder="VD: x^2 - 4x + 3, \frac{2x+1}{x-1}..."
+                placeholder="VD: \sin(x), \ln(x), 2^x, \log_2(x), \frac{x^2-1}{x^2+1}..."
                 className="w-full bg-slate-950 border border-slate-700 rounded-2xs px-2 py-1.5 text-xs font-mono text-amber-300 outline-none focus:border-amber-500 shadow-inner"
               />
+            </div>
+
+            {/* Bàn phím ký hiệu toán học nhanh */}
+            <div>
+              <div className="text-[8.5px] text-slate-500 font-mono mb-1">Ký hiệu nhanh:</div>
+              <div className="grid grid-cols-4 gap-1">
+                {[
+                  { label: "x", val: "x" },
+                  { label: "x²", val: "^2" },
+                  { label: "xⁿ", val: "^" },
+                  { label: "/", val: "/" },
+                  { label: "√x", val: "\\sqrt{" },
+                  { label: "sin", val: "\\sin(" },
+                  { label: "cos", val: "\\cos(" },
+                  { label: "tan", val: "\\tan(" },
+                  { label: "cot", val: "\\cot(" },
+                  { label: "ln", val: "\\ln(" },
+                  { label: "log₂", val: "\\log_2(" },
+                  { label: "log", val: "\\log(" },
+                  { label: "eˣ", val: "e^" },
+                  { label: "2ˣ", val: "2^" },
+                  { label: "π", val: "\\pi" },
+                  { label: "( )", val: "()" },
+                ].map((btn) => (
+                  <button
+                    key={btn.label}
+                    type="button"
+                    onClick={() => setCustomLatex((prev) => prev + btn.val)}
+                    className="px-1 py-1 bg-slate-950 hover:bg-slate-800 text-slate-300 hover:text-amber-300 border border-slate-800 rounded-3xs text-[10px] font-mono transition-all active:scale-95 text-center"
+                  >
+                    {btn.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Xem trước công thức KaTeX */}
+            <div className="bg-slate-950/80 border border-slate-800 rounded-2xs p-2 text-center">
+              <div className="text-[8.5px] text-slate-500 font-mono mb-0.5">Biểu thức chuẩn:</div>
+              <div className="overflow-x-auto py-0.5 text-amber-300 text-xs">
+                <MathDisplay tex={`y = ${customLatex || "f(x)"}`} inline />
+              </div>
             </div>
           </div>
 
@@ -2822,6 +2997,36 @@ export function FunctionModule() {
               <span className="text-slate-500 text-[9px]">GDPT 2018</span>
             </div>
             <VariationTable data={analysis.bbtData} columns={analysis.bbtColumns} discontinuities={analysis.discontinuities} />
+
+            {/* Cơ sở toán học xác định Tập xác định & Bảng biến thiên */}
+            <div className="mt-3 bg-slate-950/80 border border-slate-800/90 rounded-xs p-3 space-y-2 text-[11px] font-mono">
+              <div className="text-[10px] font-bold uppercase text-amber-400 flex items-center gap-1.5 border-b border-slate-800/80 pb-1">
+                <span className="w-1.5 h-1.5 bg-amber-400 rounded-full"></span>
+                CƠ SỞ TOÁN HỌC & TẬP XÁC ĐỊNH CHÍNH XÁC
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-slate-300">
+                <div className="bg-slate-900/60 p-2 rounded-2xs border border-slate-800">
+                  <div className="text-[9.5px] text-slate-400 mb-0.5">TẬP XÁC ĐỊNH (D):</div>
+                  <div className="text-emerald-400 font-bold text-xs">
+                    <MathDisplay tex={`D = ${analysis.domain}`} inline />
+                  </div>
+                </div>
+                {analysis.domainConditionTex && (
+                  <div className="bg-slate-900/60 p-2 rounded-2xs border border-slate-800">
+                    <div className="text-[9.5px] text-slate-400 mb-0.5">ĐIỀU KIỆN XÁC ĐỊNH:</div>
+                    <div className="text-cyan-300 font-bold text-xs">
+                      <MathDisplay tex={analysis.domainConditionTex} inline />
+                    </div>
+                  </div>
+                )}
+              </div>
+              {analysis.domainExplanation && (
+                <div className="text-[10px] text-slate-400 bg-slate-900/40 p-2 rounded-2xs border border-slate-800/60 leading-relaxed">
+                  <span className="text-amber-300 font-bold">Lập luận toán học: </span>
+                  {analysis.domainExplanation}
+                </div>
+              )}
+            </div>
           </div>
         )}
 
@@ -2977,19 +3182,19 @@ export function FunctionModule() {
                         <div>
                           <span className="text-slate-400">Điểm cực trị: </span>
                           <span className="text-amber-300 font-bold">
-                            <MathDisplay tex={`x = ${fmtFrac(ex.x)}`} inline />
+                            <MathDisplay tex={`x = ${fmtFrac(ex.x, /sin|cos|tan|cot|\\pi|\bpi\b/i.test(customLatex))}`} inline />
                           </span>
                         </div>
                         <div>
                           <span className="text-slate-400">Giá trị cực trị: </span>
                           <span className="text-emerald-300 font-bold">
-                            <MathDisplay tex={`y = ${fmtFrac(ex.y)}`} inline />
+                            <MathDisplay tex={`y = ${fmtFrac(ex.y, /sin|cos|tan|cot|\\pi|\bpi\b/i.test(customLatex))}`} inline />
                           </span>
                         </div>
                         <div className="pt-1.5 border-t border-slate-800/80">
                           <span className="text-slate-400">Điểm trên đồ thị: </span>
                           <span className="text-amber-300 font-bold text-sm">
-                            <MathDisplay tex={`M(${fmtFrac(ex.x)}; ${fmtFrac(ex.y)})`} inline />
+                            <MathDisplay tex={`M(${fmtFrac(ex.x, /sin|cos|tan|cot|\\pi|\bpi\b/i.test(customLatex))}; ${fmtFrac(ex.y, /sin|cos|tan|cot|\\pi|\bpi\b/i.test(customLatex))})`} inline />
                           </span>
                         </div>
                       </div>
@@ -3078,7 +3283,7 @@ export function FunctionModule() {
                   </div>
                   <div className="text-amber-300 font-bold text-sm bg-slate-900 px-3 py-1 rounded border border-slate-700">
                     <MathDisplay
-                      tex={`I(${fmtFrac(analysis.inflectionPoint.x)}; ${fmtFrac(analysis.inflectionPoint.y)})`}
+                      tex={`I(${fmtFrac(analysis.inflectionPoint.x, /sin|cos|tan|cot|\\pi|\bpi\b/i.test(customLatex))}; ${fmtFrac(analysis.inflectionPoint.y, /sin|cos|tan|cot|\\pi|\bpi\b/i.test(customLatex))})`}
                       inline
                     />
                   </div>

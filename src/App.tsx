@@ -1164,7 +1164,9 @@ function CircleModule() {
   const [playSpeed, setPlaySpeed] = useState<number>(1);
   const [playDirection, setPlayDirection] = useState<1 | -1>(1);
   const [isFullScreen, setIsFullScreen] = useState(false);
+  const [customAngleInput, setCustomAngleInput] = useState<string>("+60");
   const isDraggingPointRef = useRef(false);
+  const animRef = useRef<number | null>(null);
 
   useEffect(() => {
     if (!isFullScreen) return;
@@ -1174,6 +1176,13 @@ function CircleModule() {
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [isFullScreen]);
+
+  // Clean up any running animation on unmount
+  useEffect(() => {
+    return () => {
+      if (animRef.current) cancelAnimationFrame(animRef.current);
+    };
+  }, []);
 
   const nav = useCanvas2DPanZoom({
     defaultOriginX: 200,
@@ -1185,9 +1194,13 @@ function CircleModule() {
     height: 400,
   });
 
-  // Animation loop using requestAnimationFrame for smooth angle rotation
+  // Animation loop using requestAnimationFrame for continuous smooth angle rotation
   useEffect(() => {
     if (!isPlaying) return;
+    if (animRef.current) {
+      cancelAnimationFrame(animRef.current);
+      animRef.current = null;
+    }
     let lastTime = performance.now();
     let animId: number;
 
@@ -1208,6 +1221,113 @@ function CircleModule() {
     return () => cancelAnimationFrame(animId);
   }, [isPlaying, playSpeed, playDirection]);
 
+  // Quay mượt mà đến góc đích (targetDeg) theo chiều chỉ định hoặc chiều hiện tại
+  const rotateTo = (target: number, customDir?: 1 | -1) => {
+    if (animRef.current) {
+      cancelAnimationFrame(animRef.current);
+      animRef.current = null;
+    }
+    setIsPlaying(false);
+
+    const targetClamped = ((target % 360) + 360) % 360;
+    const dir = customDir ?? playDirection;
+    const startDeg = deg;
+
+    let diff = 0;
+    if (dir === 1) {
+      // Ngược chiều kim đồng hồ (chiều dương +): góc tăng dần
+      diff = (targetClamped - startDeg + 360) % 360;
+      if (diff === 0 && Math.abs(targetClamped - startDeg) > 0.1) diff = 360;
+    } else {
+      // Cùng chiều kim đồng hồ (chiều âm −): góc giảm dần
+      diff = -((startDeg - targetClamped + 360) % 360);
+      if (diff === 0 && Math.abs(startDeg - targetClamped) > 0.1) diff = -360;
+    }
+
+    if (Math.abs(diff) < 0.2) {
+      setDeg(+targetClamped.toFixed(1));
+      return;
+    }
+
+    const duration = Math.min(650, Math.max(220, Math.abs(diff) * 2.2));
+    const startTime = performance.now();
+
+    const step = (now: number) => {
+      const elapsed = now - startTime;
+      const progress = Math.min(1, elapsed / duration);
+      // Cubic ease-out
+      const ease = 1 - Math.pow(1 - progress, 3);
+      const current = (startDeg + diff * ease) % 360;
+      const normalized = current < 0 ? current + 360 : current;
+      setDeg(+normalized.toFixed(1));
+
+      if (progress < 1) {
+        animRef.current = requestAnimationFrame(step);
+      } else {
+        setDeg(+targetClamped.toFixed(1));
+        animRef.current = null;
+      }
+    };
+
+    animRef.current = requestAnimationFrame(step);
+  };
+
+  // Quay tương đối theo bước nhảy góc hoặc góc tự do không giới hạn (360°, 720°...)
+  const rotateBy = (delta: number) => {
+    if (animRef.current) {
+      cancelAnimationFrame(animRef.current);
+      animRef.current = null;
+    }
+    setIsPlaying(false);
+
+    if (Math.abs(delta) < 0.05) return;
+
+    const startDeg = deg;
+    const targetClamped = (((startDeg + delta) % 360) + 360) % 360;
+
+    // Thời lượng quay tỷ lệ với góc nhưng được giới hạn từ 320ms đến 2500ms để quan sát trực quan
+    const duration = Math.min(2500, Math.max(320, Math.abs(delta) * 2.2));
+    const startTime = performance.now();
+
+    const step = (now: number) => {
+      const elapsed = now - startTime;
+      const progress = Math.min(1, elapsed / duration);
+      // Cubic ease-out
+      const ease = 1 - Math.pow(1 - progress, 3);
+      const raw = startDeg + delta * ease;
+      const normalized = ((raw % 360) + 360) % 360;
+      setDeg(+normalized.toFixed(1));
+
+      if (progress < 1) {
+        animRef.current = requestAnimationFrame(step);
+      } else {
+        setDeg(+targetClamped.toFixed(1));
+        animRef.current = null;
+      }
+    };
+
+    animRef.current = requestAnimationFrame(step);
+  };
+
+  // Xử lý góc quay tùy ý từ ô nhập:
+  // Quy ước theo yêu cầu: "Độ lớn góc không giới hạn, nếu nhập dấu + thì hiểu là quay cùng chiều kim đồng hồ, nếu nhập dấu - thì hiểu là quay ngược chiều kim đồng hồ"
+  const handleApplyCustomAngle = () => {
+    const trimmed = customAngleInput.trim();
+    if (!trimmed) return;
+    const isNegative = trimmed.startsWith("-");
+    const numStr = trimmed.replace(/^[+-]/, "").trim();
+    const val = parseFloat(numStr);
+    if (isNaN(val) || val === 0) return;
+
+    if (isNegative) {
+      // Nhập dấu - : quay ngược chiều kim đồng hồ (+ delta lượng giác)
+      rotateBy(Math.abs(val));
+    } else {
+      // Nhập dấu + hoặc số dương: quay cùng chiều kim đồng hồ (- delta lượng giác)
+      rotateBy(-Math.abs(val));
+    }
+  };
+
   const cx = nav.origin.x;
   const cy = nav.origin.y;
   const R = nav.scale; // Unit circle radius matches scale (R = 1.0)
@@ -1220,14 +1340,17 @@ function CircleModule() {
   const commonAngles = [0, 30, 45, 60, 90, 120, 135, 150, 180, 210, 225, 240, 270, 300, 315, 330];
 
   function angleFromEvent(e: React.PointerEvent<SVGSVGElement | SVGCircleElement>) {
+    if (animRef.current) {
+      cancelAnimationFrame(animRef.current);
+      animRef.current = null;
+    }
     const svg = nav.bind.ref.current;
     if (!svg) return;
     const rect = svg.getBoundingClientRect();
     const x = ((e.clientX - rect.left) / rect.width) * 400;
     const y = ((e.clientY - rect.top) / rect.height) * 400;
-    let ang = (Math.atan2(-(y - cx + cx - cy), x - cx) * 180) / Math.PI;
     // accurate angle relative to current origin cx, cy
-    ang = (Math.atan2(-(y - cy), x - cx) * 180) / Math.PI;
+    let ang = (Math.atan2(-(y - cy), x - cx) * 180) / Math.PI;
     if (ang < 0) ang += 360;
     setDeg(+ang.toFixed(1));
   }
@@ -1249,6 +1372,27 @@ function CircleModule() {
     isDraggingPointRef.current = false;
     nav.bind.onPointerUp(e);
   };
+
+  // Tính toán cung góc lượng giác kèm mũi tên chỉ hướng quay
+  const arcR = 30;
+  const clampedArcDeg = Math.min(359.8, Math.max(0.1, deg));
+  const arcRad = (clampedArcDeg * Math.PI) / 180;
+  const arcEndX = cx + arcR * Math.cos(arcRad);
+  const arcEndY = cy - arcR * Math.sin(arcRad);
+  const largeArcFlag = clampedArcDeg > 180 ? 1 : 0;
+  // Tiếp tuyến chỉ theo chiều ngược chiều kim đồng hồ (chiều dương +)
+  const tanX = -Math.sin(arcRad);
+  const tanY = -Math.cos(arcRad);
+  const normX = Math.cos(arcRad);
+  const normY = -Math.sin(arcRad);
+  const arrowLen = 6;
+  const arrowWid = 3;
+  const arrowTipX = arcEndX;
+  const arrowTipY = arcEndY;
+  const arrowP1X = arcEndX - arrowLen * tanX + arrowWid * normX;
+  const arrowP1Y = arcEndY - arrowLen * tanY + arrowWid * normY;
+  const arrowP2X = arcEndX - arrowLen * tanX - arrowWid * normX;
+  const arrowP2Y = arcEndY - arrowLen * tanY - arrowWid * normY;
 
   return (
     <div id="module-circle" className="grid grid-cols-1 md:grid-cols-12 gap-3">
@@ -1289,54 +1433,118 @@ function CircleModule() {
               onPointerUp={handleSvgPointerUp}
               onPointerCancel={handleSvgPointerUp}
             >
-              {/* Axes with Origin (cx, cy) */}
-              <line x1={0} y1={cy} x2={400} y2={cy} stroke={COLORS.gridStrong} strokeWidth="1.4" />
-              <line x1={cx} y1={0} x2={cx} y2={400} stroke={COLORS.gridStrong} strokeWidth="1.4" />
-              {/* Axis labels */}
-              <text x={388} y={cy - 6} fontSize="10" fill={COLORS.textSecondary} fontFamily={MONO_STACK}>
+              {/* Axes with Origin (cx, cy) - Màu trắng sáng, có mũi tên chỉ hướng dương */}
+              {/* Trục hoành Ox (cos) */}
+              <line x1={0} y1={cy} x2={392} y2={cy} stroke="#ffffff" strokeWidth="1.6" />
+              <polygon points={`399,${cy} 390,${cy - 4} 390,${cy + 4}`} fill="#ffffff" />
+              
+              {/* Trục tung Oy (sin) */}
+              <line x1={cx} y1={400} x2={cx} y2={8} stroke="#ffffff" strokeWidth="1.6" />
+              <polygon points={`${cx},1 ${cx - 4},10 ${cx + 4},10`} fill="#ffffff" />
+
+              {/* Nhãn trục toạ độ & Gốc toạ độ O - Màu trắng sáng */}
+              <text x={386} y={cy - 8} fontSize="10.5" fill="#ffffff" fontWeight="bold" fontFamily={MONO_STACK} textAnchor="end">
                 x (cos)
               </text>
-              <text x={cx + 6} y={12} fontSize="10" fill={COLORS.textSecondary} fontFamily={MONO_STACK}>
+              <text x={cx + 8} y={15} fontSize="10.5" fill="#ffffff" fontWeight="bold" fontFamily={MONO_STACK}>
                 y (sin)
               </text>
-              <text x={cx - 10} y={cy + 12} fontSize="9" fill={COLORS.textFaint} fontFamily={MONO_STACK}>
+              <text x={cx - 12} y={cy + 14} fontSize="10.5" fill="#ffffff" fontWeight="bold" fontFamily={MONO_STACK}>
                 O
               </text>
 
-              {/* Unit circle */}
-              <circle cx={cx} cy={cy} r={R} fill="none" stroke={COLORS.borderLight} strokeWidth="1.6" />
+              {/* Vạch chia toạ độ ±1 trên 2 trục toạ độ */}
+              <line x1={cx + R} y1={cy - 3} x2={cx + R} y2={cy + 3} stroke="#ffffff" strokeWidth="1.4" opacity="0.8" />
+              <text x={cx + R - 3} y={cy + 13} fontSize="9" fill="#ffffff" opacity="0.9" fontFamily={MONO_STACK}>
+                1
+              </text>
+              <line x1={cx - R} y1={cy - 3} x2={cx - R} y2={cy + 3} stroke="#ffffff" strokeWidth="1.4" opacity="0.8" />
+              <text x={cx - R - 6} y={cy + 13} fontSize="9" fill="#ffffff" opacity="0.9" fontFamily={MONO_STACK}>
+                -1
+              </text>
+              <line x1={cx - 3} y1={cy - R} x2={cx + 3} y2={cy - R} stroke="#ffffff" strokeWidth="1.4" opacity="0.8" />
+              <text x={cx - 13} y={cy - R + 4} fontSize="9" fill="#ffffff" opacity="0.9" fontFamily={MONO_STACK}>
+                1
+              </text>
+              <line x1={cx - 3} y1={cy + R} x2={cx + 3} y2={cy + R} stroke="#ffffff" strokeWidth="1.4" opacity="0.8" />
+              <text x={cx - 16} y={cy + R + 4} fontSize="9" fill="#ffffff" opacity="0.9" fontFamily={MONO_STACK}>
+                -1
+              </text>
 
-              {/* Angle sector arc */}
-              <path
-                d={`M${cx},${cy} L${cx + 28},${cy} A28 28 0 ${deg > 180 ? 1 : 0} 0 ${(cx + 28 * Math.cos(rad)).toFixed(1)},${(cy - 28 * Math.sin(rad)).toFixed(1)} Z`}
-                fill={COLORS.amber}
-                opacity="0.18"
-                stroke={COLORS.amber}
-                strokeWidth="0.8"
+              {/* Đường tròn lượng giác - Màu đỏ tươi, có vùng click nhạy để chọn góc trực tiếp */}
+              <circle
+                cx={cx}
+                cy={cy}
+                r={R}
+                fill="none"
+                stroke="transparent"
+                strokeWidth="20"
+                className="cursor-pointer"
+                onPointerDown={(e) => {
+                  e.stopPropagation();
+                  angleFromEvent(e);
+                }}
               />
+              <circle cx={cx} cy={cy} r={R} fill="none" stroke="#ff2a2a" strokeWidth="2" />
 
+              {/* Angle sector arc & directional arrowhead (cung góc có mũi tên chỉ chiều quay) */}
+              {deg > 1.5 && (
+                <g>
+                  <path
+                    d={`M${cx},${cy} L${cx + arcR},${cy} A${arcR} ${arcR} 0 ${largeArcFlag} 0 ${arcEndX.toFixed(1)},${arcEndY.toFixed(1)} Z`}
+                    fill={COLORS.amber}
+                    opacity="0.22"
+                    stroke={COLORS.amber}
+                    strokeWidth="1.2"
+                  />
+                  {/* Mũi tên chỉ hướng quay ở đầu cung tròn lượng giác */}
+                  <polygon
+                    points={`${arrowTipX.toFixed(1)},${arrowTipY.toFixed(1)} ${arrowP1X.toFixed(1)},${arrowP1Y.toFixed(1)} ${arrowP2X.toFixed(1)},${arrowP2Y.toFixed(1)}`}
+                    fill={COLORS.amber}
+                  />
+                </g>
+              )}
+
+              {/* Các điểm góc đặc biệt trên đường tròn - Kích chuột trực tiếp để quay đến góc */}
               {commonAngles.map((ang) => {
                 const r2 = (ang * Math.PI) / 180;
-                return <circle key={ang} cx={cx + R * Math.cos(r2)} cy={cy - R * Math.sin(r2)} r="2.2" fill={COLORS.textFaint} />;
+                const dotX = cx + R * Math.cos(r2);
+                const dotY = cy - R * Math.sin(r2);
+                const isSelected = Math.abs(deg - ang) < 0.8 || (ang === 0 && Math.abs(deg - 360) < 0.8);
+                return (
+                  <g
+                    key={ang}
+                    className="cursor-pointer group"
+                    onPointerDown={(e) => {
+                      e.stopPropagation();
+                      rotateTo(ang);
+                    }}
+                  >
+                    <circle cx={dotX} cy={dotY} r="10" fill="transparent" />
+                    <circle
+                      cx={dotX}
+                      cy={dotY}
+                      r={isSelected ? "4" : "2.2"}
+                      fill={isSelected ? "#fbbf24" : "rgba(255,255,255,0.65)"}
+                      stroke={isSelected ? "#ffffff" : "none"}
+                      strokeWidth={isSelected ? "1" : "0"}
+                      className="transition-transform group-hover:scale-125"
+                    />
+                  </g>
+                );
               })}
 
               {/* Projections */}
-              <line x1={px} y1={py} x2={px} y2={cy} stroke={COLORS.cyan} strokeWidth="1.6" strokeDasharray="3 3" />
-              <line x1={px} y1={py} x2={cx} y2={py} stroke={COLORS.emerald} strokeWidth="1.6" strokeDasharray="3 3" />
+              <line x1={px} y1={py} x2={px} y2={cy} stroke={COLORS.cyan} strokeWidth="1.5" strokeDasharray="3 3" />
+              <line x1={px} y1={py} x2={cx} y2={py} stroke={COLORS.emerald} strokeWidth="1.5" strokeDasharray="3 3" />
 
               {/* Radius vector OM */}
-              <line x1={cx} y1={cy} x2={px} y2={py} stroke={COLORS.amber} strokeWidth="2.4" />
-              <circle cx={cx} cy={cy} r="3" fill={COLORS.textMuted} />
+              <line x1={cx} y1={cy} x2={px} y2={py} stroke={COLORS.amber} strokeWidth="2.2" />
+              <circle cx={cx} cy={cy} r="2.5" fill="#ffffff" />
 
-              {/* Draggable point M */}
-              <circle
-                cx={px}
-                cy={py}
-                r="8"
-                fill={COLORS.rose}
-                stroke={COLORS.bg}
-                strokeWidth="2.5"
-                className="cursor-pointer hover:scale-125 transition-transform"
+              {/* Draggable point M - Giảm kích thước xuống r=4.5 hài hòa với các đối tượng khác */}
+              <g
+                className="cursor-pointer"
                 onPointerDown={(e) => {
                   e.stopPropagation();
                   isDraggingPointRef.current = true;
@@ -1356,7 +1564,36 @@ function CircleModule() {
                     // ignore
                   }
                 }}
-              />
+              >
+                {/* Vùng tương tác rộng rãi giúp thao tác mượt mà trên cảm ứng / chuột */}
+                <circle cx={px} cy={py} r="14" fill="transparent" />
+                {/* Điểm màu đỏ tươi tinh tế, viền trắng sáng */}
+                <circle
+                  cx={px}
+                  cy={py}
+                  r="4.5"
+                  fill="#ff2a2a"
+                  stroke="#ffffff"
+                  strokeWidth="1.5"
+                  className="transition-transform hover:scale-125"
+                />
+                {/* Tên điểm M */}
+                <text
+                  x={px + 9 * Math.cos(rad)}
+                  y={py - 9 * Math.sin(rad)}
+                  fontSize="10.5"
+                  fontWeight="bold"
+                  fill="#ff4d4f"
+                  stroke="#020617"
+                  strokeWidth="2"
+                  paintOrder="stroke"
+                  textAnchor={Math.cos(rad) >= 0 ? "start" : "end"}
+                  dominantBaseline="central"
+                  fontFamily={MONO_STACK}
+                >
+                  M
+                </text>
+              </g>
 
               {/* Value labels */}
               <text
@@ -1379,67 +1616,11 @@ function CircleModule() {
                 M(cos θ; sin θ)
               </span>
               <span className="bg-slate-950/85 backdrop-blur-xs border border-slate-800/80 px-1.5 py-0.5 rounded-2xs text-slate-400">
-                💡 Cuộn chuột để Zoom · Nhấn giữ chuột để Di chuyển gốc O
+                💡 Cuộn chuột để Zoom · Nhấn giữ chuột để Di chuyển gốc O · Kích chuột chọn góc trực tiếp
               </span>
             </div>
           </div>
         </Panel>
-
-        {/* Animation Play/Pause Toolbar */}
-        <div className="bg-slate-900/90 border border-slate-800 rounded-xs p-2.5 flex flex-wrap items-center justify-between gap-2 shadow-sm">
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              id="btn-circle-play-toggle"
-              onClick={() => setIsPlaying((p) => !p)}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-2xs text-xs font-mono font-bold transition-all shadow-xs cursor-pointer ${
-                isPlaying
-                  ? "bg-rose-500/20 text-rose-300 border border-rose-500/50 hover:bg-rose-500/30"
-                  : "bg-emerald-500/20 text-emerald-300 border border-emerald-500/50 hover:bg-emerald-500/30"
-              }`}
-            >
-              <span>{isPlaying ? "⏸ DỪNG QUAY" : "▶ CHẠY GÓC θ"}</span>
-            </button>
-            <button
-              type="button"
-              id="btn-circle-reset-0"
-              onClick={() => setDeg(0)}
-              className="px-2.5 py-1.5 bg-slate-950 hover:bg-slate-800 border border-slate-800 text-slate-300 rounded-2xs text-xs font-mono transition-colors cursor-pointer"
-              title="Về góc 0°"
-            >
-              ↺ Về 0°
-            </button>
-            <button
-              type="button"
-              id="btn-circle-dir-toggle"
-              onClick={() => setPlayDirection((d) => (d === 1 ? -1 : 1))}
-              className="px-2 py-1.5 bg-slate-950 hover:bg-slate-800 border border-slate-800 text-slate-300 rounded-2xs text-[11px] font-mono transition-colors cursor-pointer"
-              title="Đổi chiều quay lượng giác (dương / âm)"
-            >
-              Chiều: {playDirection === 1 ? "Ngược CKĐH (+)" : "Cùng CKĐH (−)"}
-            </button>
-          </div>
-
-          {/* Speed selector */}
-          <div className="flex items-center gap-1 bg-slate-950 p-1 rounded-2xs border border-slate-800">
-            <span className="text-[10px] text-slate-400 font-mono px-1">TỐC ĐỘ:</span>
-            {[0.5, 1, 2, 4].map((spd) => (
-              <button
-                key={spd}
-                type="button"
-                id={`btn-speed-${spd}`}
-                onClick={() => setPlaySpeed(spd)}
-                className={`text-[10px] px-2 py-0.5 rounded-3xs font-mono font-bold transition-colors cursor-pointer ${
-                  playSpeed === spd
-                    ? "bg-amber-500/30 text-amber-300 border border-amber-500/50"
-                    : "text-slate-400 hover:text-slate-200"
-                }`}
-              >
-                {spd}x
-              </button>
-            ))}
-          </div>
-        </div>
 
         {/* KaTeX Values */}
         <div className="bg-slate-900/80 border border-slate-800 rounded-xs p-3 font-mono shadow-sm">
@@ -1467,50 +1648,222 @@ function CircleModule() {
         </div>
 
         <Note id="circle-hint">
-          Bấm nút <strong>▶ CHẠY GÓC θ</strong> để xem chuyển động quay liên tục của góc lượng giác. Bạn có thể kéo điểm đỏ, cuộn chuột để phóng to/thu nhỏ và kéo chuột để dời gốc tọa độ O.
+          <strong>Quy ước lượng giác SGK Toán 10:</strong> Chiều <strong>Ngược chiều kim đồng hồ</strong> là <strong>chiều dương (+)</strong> (từ tia Ox hướng lên Oy). Chiều <strong>Cùng chiều kim đồng hồ</strong> là <strong>chiều âm (−)</strong>. Bấm các nút <strong>+{`{15°, 30°...}`}</strong> hoặc <strong>−{`{15°, 30°...}`}</strong> để quay từng bước, kích chuột vào các góc hoặc click trực tiếp lên đường tròn để quay mượt mà.
         </Note>
       </div>
 
-      <div className="md:col-span-4">
-        <Panel id="circle-controls-panel" title="THAM SỐ GÓC & ĐẠI LƯỢNG" badge="TRIG_METRICS">
-          <SectionLabel iconColor="bg-amber-500">HỘP NHẬP GÓC LƯỢNG GIÁC θ</SectionLabel>
-          <NumberInput
-            id="input-circle-deg"
-            label="Góc θ (độ)"
-            value={Math.round(deg)}
-            min={0}
-            max={360}
-            step={1}
-            onChange={(val) => setDeg(Math.round(((val % 360) + 360) % 360))}
-            unit="°"
-            color="amber"
-            quickOptions={[0, 30, 45, 60, 90, 120, 180, 270, 360]}
-          />
-          <div className="flex gap-1.5 flex-wrap mb-3 font-mono">
-            {[0, 30, 45, 60, 90, 120, 135, 150, 180, 210, 225, 270, 315, 360].map((ang) => (
-              <button
-                key={ang}
-                id={`btn-angle-${ang}`}
-                type="button"
-                onClick={() => setDeg(ang)}
-                className={`text-[10px] px-1.5 py-0.5 rounded-2xs border transition-all ${
-                  Math.round(deg) === ang
-                    ? "bg-amber-500/20 border-amber-500 text-amber-300 font-bold"
-                    : "bg-slate-950 border-slate-800 text-slate-400 hover:border-slate-700"
-                }`}
-              >
-                {ang}°
-              </button>
-            ))}
+      {/* CỘT PHẢI: HỘP THOẠI "CHẠY GÓC" ĐẶT BÊN PHẢI CỬA SỔ HIỂN THỊ ĐƯỜNG TRÒN LƯỢNG GIÁC */}
+      <div className="md:col-span-5 lg:col-span-4 flex flex-col gap-3">
+        <Panel id="circle-play-panel" title="HỘP THOẠI // CHẠY GÓC" badge="ROTATION_CTRL">
+          {/* Góc lượng giác hiện tại */}
+          <div className="bg-slate-950 p-3 rounded-2xs border border-slate-800 flex items-center justify-between mb-3">
+            <div>
+              <span className="text-[10px] text-slate-400 block font-mono">GÓC HIỆN TẠI (θ)</span>
+              <span className="text-xl font-bold font-mono text-amber-300">
+                {Math.round(deg)}°{" "}
+                <span className="text-xs text-slate-400 font-normal">({fmt((deg * Math.PI) / 180, 3)} rad)</span>
+              </span>
+            </div>
+            <button
+              type="button"
+              id="btn-circle-reset-0"
+              onClick={() => rotateTo(0)}
+              className="px-2.5 py-1.5 bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-300 rounded-2xs text-xs font-mono transition-colors cursor-pointer"
+              title="Về góc 0°"
+            >
+              ↺ Về 0°
+            </button>
           </div>
 
-          <SectionLabel iconColor="bg-cyan-500">KẾT QUẢ ĐẠI SỐ</SectionLabel>
-          <Formula id="circle-values" title="TRIG_VALUES // SIN_COS_TAN">
-            {`θ = ${deg.toFixed(1)}° = ${fmt((deg * Math.PI) / 180, 4)} rad\nsin θ (tung độ)  = ${fmt(sinV, 4)}\ncos θ (hoành độ) = ${fmt(
-              cosV,
-              4
-            )}\ntan θ (sin/cos)  = ${Number.isFinite(tanV) ? fmt(tanV, 4) : "không xác định"}`}
-          </Formula>
+          {/* Nút Chạy / Dừng quay chính */}
+          <SectionLabel iconColor="bg-emerald-500">ĐIỀU KHIỂN CHẠY GÓC</SectionLabel>
+          <div className="flex flex-col gap-2 mb-3">
+            <button
+              type="button"
+              id="btn-circle-play-toggle"
+              onClick={() => setIsPlaying((p) => !p)}
+              className={`w-full py-2.5 rounded-2xs text-xs font-mono font-bold transition-all shadow-xs cursor-pointer flex items-center justify-center gap-2 ${
+                isPlaying
+                  ? "bg-rose-500/20 text-rose-300 border border-rose-500/60 hover:bg-rose-500/30"
+                  : "bg-emerald-500/20 text-emerald-300 border border-emerald-500/60 hover:bg-emerald-500/30"
+              }`}
+            >
+              <span className="text-sm">{isPlaying ? "⏸" : "▶"}</span>
+              <span>{isPlaying ? "DỪNG QUAY GÓC" : "CHẠY GÓC QUAY θ"}</span>
+            </button>
+
+            {/* Chiều quay lượng giác */}
+            <button
+              type="button"
+              id="btn-circle-dir-toggle"
+              onClick={() => setPlayDirection((d) => (d === 1 ? -1 : 1))}
+              className={`w-full py-2 px-2.5 border rounded-2xs text-xs font-mono font-bold transition-colors cursor-pointer flex items-center justify-center gap-1.5 ${
+                playDirection === 1
+                  ? "bg-cyan-500/20 border-cyan-500/60 text-cyan-300 hover:bg-cyan-500/30"
+                  : "bg-amber-500/20 border-amber-500/60 text-amber-300 hover:bg-amber-500/30"
+              }`}
+              title="Đổi chiều quay lượng giác (dương / âm)"
+            >
+              <span>{playDirection === 1 ? "↺ Chiều: Ngược CKĐH (+ Dương)" : "↻ Chiều: Cùng CKĐH (− Âm)"}</span>
+            </button>
+
+            {/* Tốc độ quay */}
+            <div className="flex items-center justify-between gap-1 bg-slate-950 p-1.5 rounded-2xs border border-slate-800">
+              <span className="text-[10px] text-slate-400 font-mono px-1">TỐC ĐỘ:</span>
+              <div className="flex items-center gap-1">
+                {[0.5, 1, 2, 4].map((spd) => (
+                  <button
+                    key={spd}
+                    type="button"
+                    id={`btn-speed-${spd}`}
+                    onClick={() => setPlaySpeed(spd)}
+                    className={`text-[10px] px-2 py-0.5 rounded-3xs font-mono font-bold transition-colors cursor-pointer ${
+                      playSpeed === spd
+                        ? "bg-amber-500/30 text-amber-300 border border-amber-500/50"
+                        : "text-slate-400 hover:text-slate-200"
+                    }`}
+                  >
+                    {spd}x
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Hộp nhập giá trị góc quay - Độ lớn không giới hạn */}
+          <SectionLabel iconColor="bg-amber-500">HỘP NHẬP GIÁ TRỊ GÓC QUAY (KHÔNG GIỚI HẠN)</SectionLabel>
+          <div className="bg-slate-950 p-2.5 rounded-2xs border border-slate-800 flex flex-col gap-2 mb-3">
+            <div className="flex items-center justify-between text-[11px] font-mono">
+              <span className="text-slate-400">QUY ƯỚC DẤU GÓC QUAY:</span>
+              <span className="text-[10.5px]">
+                <span className="text-amber-400 font-bold">+</span> Cùng CKĐH ·{" "}
+                <span className="text-cyan-400 font-bold">−</span> Ngược CKĐH
+              </span>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <div className="relative flex-1">
+                <input
+                  type="text"
+                  id="input-custom-angle"
+                  value={customAngleInput}
+                  onChange={(e) => setCustomAngleInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      handleApplyCustomAngle();
+                    }
+                  }}
+                  placeholder="VD: +60, -120, +720, -1080..."
+                  className="w-full bg-slate-900 border border-slate-700 focus:border-amber-500 rounded-2xs px-3 py-2 text-sm font-mono text-amber-300 font-bold outline-none transition-colors"
+                />
+                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-mono text-slate-400 pointer-events-none">
+                  độ (°)
+                </span>
+              </div>
+              <button
+                type="button"
+                id="btn-apply-custom-angle"
+                onClick={handleApplyCustomAngle}
+                className="px-3.5 py-2 bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/60 hover:border-amber-500 text-amber-300 font-mono text-xs font-bold rounded-2xs cursor-pointer transition-all whitespace-nowrap shadow-xs"
+                title="Thực hiện quay theo góc vừa nhập (hoặc bấm phím Enter)"
+              >
+                QUAY GÓC ↵
+              </button>
+            </div>
+
+            {/* Trợ giúp trực quan chiều quay theo ký tự đang nhập */}
+            <div className="text-[10.5px] font-mono flex items-center justify-between px-1 text-slate-400">
+              <span>
+                Chiều quay:{" "}
+                {customAngleInput.trim().startsWith("-") ? (
+                  <span className="text-cyan-400 font-bold">↺ Quay NGƯỢC chiều kim đồng hồ</span>
+                ) : (
+                  <span className="text-amber-400 font-bold">↻ Quay CÙNG chiều kim đồng hồ</span>
+                )}
+              </span>
+              <span className="text-slate-400 text-[10px]">Nhấn Enter để quay</span>
+            </div>
+
+            {/* Các phím mẫu góc không giới hạn thường dùng */}
+            <div className="flex items-center gap-1 flex-wrap pt-1 border-t border-slate-800/80">
+              <span className="text-[10px] text-slate-400 font-mono">Mẫu:</span>
+              {[
+                { label: "+60°", val: "+60" },
+                { label: "−120°", val: "-120" },
+                { label: "+180°", val: "+180" },
+                { label: "−180°", val: "-180" },
+                { label: "+360°", val: "+360" },
+                { label: "−360°", val: "-360" },
+                { label: "+720°", val: "+720" },
+                { label: "−720°", val: "-720" },
+              ].map((item) => (
+                <button
+                  key={item.label}
+                  type="button"
+                  onClick={() => {
+                    setCustomAngleInput(item.val);
+                    const isNeg = item.val.startsWith("-");
+                    const num = parseFloat(item.val.replace(/^[+-]/, ""));
+                    if (isNeg) rotateBy(num);
+                    else rotateBy(-num);
+                  }}
+                  className="text-[10px] px-1.5 py-0.5 bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 rounded-2xs font-mono cursor-pointer transition-colors"
+                >
+                  {item.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Quay từng bước theo góc - Đã bổ sung đầy đủ +60°, +120°, +180°, +270°, +360° và -60°, -120°, -180°, -270°, -360° */}
+          <SectionLabel iconColor="bg-cyan-500">QUAY TỪNG BƯỚC (STEP ROTATION)</SectionLabel>
+          <div className="flex flex-col gap-2">
+            <div className="bg-slate-950 p-2.5 rounded-2xs border border-slate-800/80">
+              <div className="text-[11px] text-cyan-400 font-mono font-bold mb-1.5 flex items-center justify-between">
+                <span className="flex items-center gap-1">
+                  <span>↺</span> Quay ngược CKĐH (+ Chiều dương):
+                </span>
+                <span className="text-[10px] text-slate-400 font-normal">9 mức góc</span>
+              </div>
+              <div className="grid grid-cols-3 sm:grid-cols-5 gap-1.5 font-mono">
+                {[15, 30, 45, 60, 90, 120, 180, 270, 360].map((stepVal) => (
+                  <button
+                    key={`plus-${stepVal}`}
+                    type="button"
+                    id={`btn-step-plus-${stepVal}`}
+                    onClick={() => rotateBy(stepVal)}
+                    className="py-1.5 px-1 bg-slate-900 hover:bg-cyan-950/40 border border-slate-800 hover:border-cyan-500 text-cyan-300 text-xs font-bold rounded-2xs cursor-pointer transition-colors text-center shadow-xs"
+                    title={`Quay ngược chiều kim đồng hồ +${stepVal}°`}
+                  >
+                    +{stepVal}°
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="bg-slate-950 p-2.5 rounded-2xs border border-slate-800/80">
+              <div className="text-[11px] text-amber-400 font-mono font-bold mb-1.5 flex items-center justify-between">
+                <span className="flex items-center gap-1">
+                  <span>↻</span> Quay cùng CKĐH (− Chiều âm):
+                </span>
+                <span className="text-[10px] text-slate-400 font-normal">9 mức góc</span>
+              </div>
+              <div className="grid grid-cols-3 sm:grid-cols-5 gap-1.5 font-mono">
+                {[15, 30, 45, 60, 90, 120, 180, 270, 360].map((stepVal) => (
+                  <button
+                    key={`minus-${stepVal}`}
+                    type="button"
+                    id={`btn-step-minus-${stepVal}`}
+                    onClick={() => rotateBy(-stepVal)}
+                    className="py-1.5 px-1 bg-slate-900 hover:bg-amber-950/40 border border-slate-800 hover:border-amber-500 text-amber-300 text-xs font-bold rounded-2xs cursor-pointer transition-colors text-center shadow-xs"
+                    title={`Quay cùng chiều kim đồng hồ −${stepVal}°`}
+                  >
+                    −{stepVal}°
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
         </Panel>
       </div>
     </div>
