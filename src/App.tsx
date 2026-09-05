@@ -4,6 +4,7 @@ import katex from "katex";
 import { Maximize2, Minimize2, Download, Sun, Moon } from "lucide-react";
 import { PolyhedraModule } from "./components/PolyhedraModule";
 import { FunctionModule } from "./components/FunctionModule";
+import IntegralRevolution3D from "./components/IntegralRevolution3D";
 import { downloadSvgAsPng, downloadCanvas3D } from "./utils/exportImage";
 import { useTheme, ThemeColors } from "./context/ThemeContext";
 
@@ -2502,6 +2503,20 @@ function IntegralModule() {
     };
   }, [fn, lower, upper]);
 
+  // Numerical Simpson integration for Solid of Revolution Volume V = pi * integral_a^b [f(x)]^2 dx
+  const revolutionVolume = useMemo(() => {
+    if (upper <= lower) return 0;
+    const n = 600;
+    const h = (upper - lower) / n;
+    let sSq = Math.pow(fn(lower), 2) + Math.pow(fn(upper), 2);
+    for (let i = 1; i < n; i++) {
+      const x = lower + i * h;
+      const factor = i % 2 === 0 ? 2 : 4;
+      sSq += factor * Math.pow(fn(x), 2);
+    }
+    return (Math.PI * sSq * h) / 3;
+  }, [fn, lower, upper]);
+
   const signChanges = Math.abs(Math.abs(signedIntegral) - area) > 0.02;
 
   const curvePath = useMemo(
@@ -2520,154 +2535,181 @@ function IntegralModule() {
   }, [fn, lower, upper, nav.toPxX, nav.toPxY]);
 
   return (
-    <div id="module-integral" className="grid grid-cols-1 md:grid-cols-12 gap-3">
-      <div className="md:col-span-8 flex flex-col gap-3">
-        <Panel
-          id="integral-canvas-panel"
-          title="TÍCH PHÂN & DIỆN TÍCH MIỀN PHẲNG // RIEMANN_INTEGRAL"
-          badge="AREA_INTEGRAL"
-          isFullScreen={isFullScreen}
-          onToggleFullScreen={() => setIsFullScreen((f) => !f)}
-          onDownloadImage={() => downloadSvgAsPng(nav.bind.ref.current, `tich-phan-dien-tich-${Date.now()}`, 2)}
-          downloadLabel="TẢI ẢNH (PNG)"
-          action={<span className="font-mono text-[10px]" style={{ color: areaColor }}>S = {fmt(area, 3)} đvdt</span>}
-        >
-          <div className={`relative bg-slate-950 border border-slate-800/80 rounded-2xs overflow-hidden select-none ${isFullScreen ? "w-full flex-1 h-full min-h-0 flex items-center justify-center" : ""}`}>
-            <Canvas2DNavHUD
-              scale={nav.scale}
-              defaultScale={nav.defaultScale}
-              onZoomIn={nav.zoomIn}
-              onZoomOut={nav.zoomOut}
-              onReset={nav.resetView}
-              origin={nav.origin}
-            />
-            <svg
-              {...nav.bind}
-              viewBox={`0 0 ${VB_W} ${VB_H}`}
-              className={`w-full ${isFullScreen ? "h-full max-h-[calc(100vh-100px)]" : "h-auto"} block touch-none ${nav.isPanning ? "cursor-grabbing" : "cursor-grab"}`}
-            >
-              <GraphGrid
-                originX={nav.origin.x}
-                originY={nav.origin.y}
+    <div id="module-integral" className="flex flex-col gap-3">
+      {/* HÀNG 1: HAI CỬA SỔ NẰM CẠNH NHAU (2D & 3D) */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+        {/* CỬA SỔ 1 (BÊN TRÁI): TÍCH PHÂN & DIỆN TÍCH MIỀN PHẲNG (2D) */}
+        <div className="flex flex-col gap-2">
+          <Panel
+            id="integral-canvas-panel"
+            title="TÍCH PHÂN & DIỆN TÍCH MIỀN PHẲNG (2D)"
+            badge="AREA_2D"
+            isFullScreen={isFullScreen}
+            onToggleFullScreen={() => setIsFullScreen((f) => !f)}
+            onDownloadImage={() => downloadSvgAsPng(nav.bind.ref.current, `tich-phan-dien-tich-${Date.now()}`, 2)}
+            downloadLabel="TẢI ẢNH (PNG)"
+            action={<span className="font-mono text-[10px]" style={{ color: areaColor }}>S = {fmt(area, 3)} đvdt</span>}
+          >
+            <div className={`relative bg-slate-950 border border-slate-800/80 rounded-2xs overflow-hidden select-none ${isFullScreen ? "w-full flex-1 h-full min-h-0 flex items-center justify-center" : ""}`}>
+              <Canvas2DNavHUD
                 scale={nav.scale}
-                width={VB_W}
-                height={VB_H}
-                axisColor="#ffffff"
-                axisWidth={2}
+                defaultScale={nav.defaultScale}
+                onZoomIn={nav.zoomIn}
+                onZoomOut={nav.zoomOut}
+                onReset={nav.resetView}
+                origin={nav.origin}
               />
-              <path d={fillPath} fill={areaColor} opacity="0.35" stroke="none" />
-              <line
-                x1={nav.toPxX(lower)}
-                y1={nav.toPxY(0)}
-                x2={nav.toPxX(lower)}
-                y2={nav.toPxY(fn(lower))}
-                stroke={COLORS.cyan}
-                strokeWidth="1.4"
-                strokeDasharray="3 3"
-              />
-              <line
-                x1={nav.toPxX(upper)}
-                y1={nav.toPxY(0)}
-                x2={nav.toPxX(upper)}
-                y2={nav.toPxY(fn(upper))}
-                stroke={COLORS.cyan}
-                strokeWidth="1.4"
-                strokeDasharray="3 3"
-              />
-              <path d={curvePath} stroke={COLORS.amber} strokeWidth="2.4" fill="none" strokeLinejoin="round" />
-            </svg>
-            <div className="absolute bottom-1.5 left-2 right-2 flex items-center justify-between font-mono text-[9px] text-slate-400 pointer-events-none">
-              <span className="bg-slate-900/90 border border-slate-800 px-1.5 py-0.5 rounded-2xs flex items-center gap-1" style={{ color: areaColor }}>
-                <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: areaColor }} />
-                INTEGRAL REGION S
-              </span>
-              <span className="bg-slate-950/85 backdrop-blur-xs border border-slate-800/80 px-1.5 py-0.5 rounded-2xs text-slate-400">
-                💡 Cuộn chuột để Zoom · Nhấn giữ chuột để Di chuyển gốc O
+              <svg
+                {...nav.bind}
+                viewBox={`0 0 ${VB_W} ${VB_H}`}
+                className={`w-full ${isFullScreen ? "h-full max-h-[calc(100vh-100px)]" : "h-[380px]"} block touch-none ${nav.isPanning ? "cursor-grabbing" : "cursor-grab"}`}
+              >
+                <GraphGrid
+                  originX={nav.origin.x}
+                  originY={nav.origin.y}
+                  scale={nav.scale}
+                  width={VB_W}
+                  height={VB_H}
+                  axisColor="#ffffff"
+                  axisWidth={2}
+                />
+                <path d={fillPath} fill={areaColor} opacity="0.35" stroke="none" />
+                <line
+                  x1={nav.toPxX(lower)}
+                  y1={nav.toPxY(0)}
+                  x2={nav.toPxX(lower)}
+                  y2={nav.toPxY(fn(lower))}
+                  stroke={COLORS.cyan}
+                  strokeWidth="1.4"
+                  strokeDasharray="3 3"
+                />
+                <line
+                  x1={nav.toPxX(upper)}
+                  y1={nav.toPxY(0)}
+                  x2={nav.toPxX(upper)}
+                  y2={nav.toPxY(fn(upper))}
+                  stroke={COLORS.cyan}
+                  strokeWidth="1.4"
+                  strokeDasharray="3 3"
+                />
+                <path d={curvePath} stroke={COLORS.amber} strokeWidth="2.4" fill="none" strokeLinejoin="round" />
+              </svg>
+              <div className="absolute bottom-1.5 left-2 right-2 flex items-center justify-between font-mono text-[9px] text-slate-400 pointer-events-none">
+                <span className="bg-slate-900/90 border border-slate-800 px-1.5 py-0.5 rounded-2xs flex items-center gap-1" style={{ color: areaColor }}>
+                  <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: areaColor }} />
+                  INTEGRAL REGION S
+                </span>
+                <span className="bg-slate-950/85 backdrop-blur-xs border border-slate-800/80 px-1.5 py-0.5 rounded-2xs text-slate-400">
+                  💡 Cuộn chuột để Zoom · Nhấn giữ để Di chuyển O
+                </span>
+              </div>
+            </div>
+          </Panel>
+
+          {/* Tùy chọn màu sắc cho diện tích hình phẳng */}
+          <div className="bg-slate-900/90 border border-slate-800 rounded-2xs px-3 py-2 flex flex-wrap items-center justify-between gap-2 shadow-xs">
+            <div className="flex items-center gap-2">
+              <span className="w-3 h-3 rounded-full border border-white/30 shrink-0" style={{ backgroundColor: areaColor }} />
+              <span className="text-[11px] font-mono text-slate-300 font-semibold tracking-wide">
+                MÀU SẮC DIỆN TÍCH HÌNH PHẲNG:
               </span>
             </div>
-          </div>
-        </Panel>
-
-        {/* Tùy chọn màu sắc cho diện tích hình phẳng ở cửa sổ hiển thị bên trái */}
-        <div className="bg-slate-900/90 border border-slate-800 rounded-2xs px-3 py-2 flex flex-wrap items-center justify-between gap-2 shadow-xs">
-          <div className="flex items-center gap-2">
-            <span className="w-3 h-3 rounded-full border border-white/30 shrink-0" style={{ backgroundColor: areaColor }} />
-            <span className="text-[11px] font-mono text-slate-300 font-semibold tracking-wide">
-              MÀU SẮC DIỆN TÍCH HÌNH PHẲNG:
-            </span>
-          </div>
-          <div className="flex items-center gap-1.5 flex-wrap">
-            {AREA_COLOR_PALETTE.map((item) => (
-              <button
-                key={item.hex}
-                type="button"
-                onClick={() => setAreaColor(item.hex)}
-                title={item.name}
-                className={`w-5 h-5 rounded-full transition-all border ${
-                  areaColor === item.hex
-                    ? "ring-2 ring-white scale-110 border-white shadow-sm"
-                    : "border-slate-700/80 opacity-75 hover:opacity-100 hover:scale-105"
-                }`}
-                style={{ backgroundColor: item.hex }}
-              />
-            ))}
+            <div className="flex items-center gap-1.5 flex-wrap">
+              {AREA_COLOR_PALETTE.map((item) => (
+                <button
+                  key={item.hex}
+                  type="button"
+                  onClick={() => setAreaColor(item.hex)}
+                  title={item.name}
+                  className={`w-5 h-5 rounded-full transition-all border ${
+                    areaColor === item.hex
+                      ? "ring-2 ring-white scale-110 border-white shadow-sm"
+                      : "border-slate-700/80 opacity-75 hover:opacity-100 hover:scale-105"
+                  }`}
+                  style={{ backgroundColor: item.hex }}
+                />
+              ))}
+            </div>
           </div>
         </div>
 
-        <Note id="integral-hint">
-          Vùng tô màu là diện tích hình phẳng giới hạn bởi đồ thị hàm số y = f(x), trục hoành Ox và hai đường thẳng x = a, x = b. Tích phân xác định có dấu âm nếu đồ thị nằm phía dưới trục hoành Ox.
-        </Note>
+        {/* CỬA SỔ 2 (BÊN PHẢI): MÔ PHỎNG 3D MIỀN DIỆN TÍCH QUAY QUANH TRỤC Ox */}
+        <div className="flex flex-col gap-2">
+          <IntegralRevolution3D
+            fn={fn}
+            lower={lower}
+            upper={upper}
+            areaColor={areaColor}
+            customLatex={customLatex}
+          />
+        </div>
       </div>
 
-      <div className="md:col-span-4">
-        <Panel id="integral-controls-panel" title="THIẾT LẬP TÍCH PHÂN" badge="INTEGRAL_PARAM">
-          <SectionLabel iconColor="bg-amber-500">GÕ BIỂU THỨC LATEX</SectionLabel>
-          <LatexFunctionInput
-            id="input-int-latex"
-            label="BIỂU THỨC HÀM SỐ f(x)"
-            value={customLatex}
-            onChange={setCustomLatex}
-            hideSymbols={true}
-            hidePresets={true}
-          />
+      {/* HÀNG 2: THIẾT LẬP TÍCH PHÂN & CÔNG THỨC TOÁN HỌC */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-3">
+        <div className="lg:col-span-5 flex flex-col gap-3">
+          <Panel id="integral-controls-panel" title="THIẾT LẬP TÍCH PHÂN" badge="INTEGRAL_PARAM">
+            <SectionLabel iconColor="bg-amber-500">GÕ BIỂU THỨC LATEX</SectionLabel>
+            <LatexFunctionInput
+              id="input-int-latex"
+              label="BIỂU THỨC HÀM SỐ f(x)"
+              value={customLatex}
+              onChange={setCustomLatex}
+              hideSymbols={true}
+              hidePresets={true}
+            />
 
-          <SectionLabel iconColor="bg-emerald-500">HỘP NHẬP CẬN TÍCH PHÂN [a; b]</SectionLabel>
-          <div className="grid grid-cols-2 gap-2">
-            <NumberInput id="input-lower" label="Cận dưới a" value={lo} min={-6} max={6} step={0.1} onChange={setLo} color="cyan" quickOptions={[-3, -2, -1, 0, 1]} />
-            <NumberInput id="input-upper" label="Cận trên b" value={hi} min={-6} max={6} step={0.1} onChange={setHi} color="emerald" quickOptions={[0, 1, 2, 3, 3.14]} />
-          </div>
+            <SectionLabel iconColor="bg-emerald-500">HỘP NHẬP CẬN TÍCH PHÂN [a; b]</SectionLabel>
+            <div className="grid grid-cols-2 gap-2">
+              <NumberInput id="input-lower" label="Cận dưới a" value={lo} step={0.1} onChange={setLo} color="cyan" quickOptions={[-3, -2, -1, 0, 1]} />
+              <NumberInput id="input-upper" label="Cận trên b" value={hi} step={0.1} onChange={setHi} color="emerald" quickOptions={[0, 1, 2, 3, 3.14]} />
+            </div>
 
-          {/* Textbook-grade formula presentation đưa sang cửa sổ bên phải */}
-          <div className="mt-3 bg-slate-950/90 border border-slate-800 rounded-xs p-3 font-mono shadow-sm">
-            <div className="flex items-center justify-between text-[9px] text-slate-400 uppercase tracking-widest border-b border-slate-800 pb-1 mb-2">
-              <span className="text-emerald-400 font-bold flex items-center gap-1.5">
-                <span className="w-1.5 h-1.5 bg-emerald-400 rounded-full"></span>
-                CÔNG THỨC TÍCH PHÂN & DIỆN TÍCH (NEWTON-LEIBNIZ)
-              </span>
-              <span className="text-slate-500">LỚP 12</span>
-            </div>
-            <div className="space-y-2 py-1">
-              <div className="text-center text-amber-300 text-sm overflow-x-auto py-0.5">
-                <MathDisplay tex={`y = f(x) = ${customLatex || "0"}`} />
+            <Note id="integral-hint">
+              Vùng tô màu là diện tích hình phẳng giới hạn bởi đồ thị hàm số y = f(x), trục hoành Ox và hai đường thẳng x = a, x = b. Khi nhấn "QUAY QUANH Ox" ở cửa sổ 3D bên cạnh, hình phẳng sẽ quay để quét tạo thành khối tròn xoay.
+            </Note>
+          </Panel>
+        </div>
+
+        <div className="lg:col-span-7 flex flex-col gap-3">
+          <Panel id="integral-formula-panel" title="CÔNG THỨC ỨNG DỤNG TÍCH PHÂN (SGK TOÁN 12)" badge="NEWTON_LEIBNIZ">
+            <div className="bg-slate-950/90 border border-slate-800 rounded-xs p-3 font-mono shadow-sm">
+              <div className="flex items-center justify-between text-[9px] text-slate-400 uppercase tracking-widest border-b border-slate-800 pb-1 mb-2">
+                <span className="text-emerald-400 font-bold flex items-center gap-1.5">
+                  <span className="w-1.5 h-1.5 bg-emerald-400 rounded-full"></span>
+                  ĐỊNH LÝ NEWTON - LEIBNIZ & HÌNH HỌC KHÔNG GIAN
+                </span>
+                <span className="text-slate-500">CHƯƠNG TRÌNH GDPT 2018</span>
               </div>
-              <div className="space-y-2 pt-1 border-t border-slate-800/80">
-                <div className="bg-slate-900/90 p-2 rounded-2xs border border-slate-800 text-center overflow-x-auto">
-                  <span className="text-[10px] text-cyan-400 block font-bold mb-1">TÍCH PHÂN XÁC ĐỊNH</span>
-                  <MathDisplay tex={`\\int_{${fmt(lower)}}^{${fmt(upper)}} f(x)\\,dx \\approx ${fmt(signedIntegral, 3)}`} />
+              <div className="space-y-2 py-1">
+                <div className="text-center text-amber-300 text-sm overflow-x-auto py-0.5">
+                  <MathDisplay tex={`y = f(x) = ${customLatex || "0"}`} />
                 </div>
-                <div className="bg-slate-900/90 p-2 rounded-2xs border border-slate-800 text-center overflow-x-auto">
-                  <span className="text-[10px] text-emerald-400 block font-bold mb-1">DIỆN TÍCH MIỀN PHẲNG (S)</span>
-                  <MathDisplay tex={`S = \\int_{${fmt(lower)}}^{${fmt(upper)}} |f(x)|\\,dx \\approx ${fmt(area, 3)}`} />
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1 border-t border-slate-800/80">
+                  <div className="bg-slate-900/90 p-2 rounded-2xs border border-slate-800 text-center overflow-x-auto">
+                    <span className="text-[10px] text-cyan-400 block font-bold mb-1">TÍCH PHÂN XÁC ĐỊNH</span>
+                    <MathDisplay tex={`\\int_{${fmt(lo)}}^{${fmt(hi)}} f(x)\\,dx \\approx ${fmt(lo <= hi ? signedIntegral : -signedIntegral, 3)}`} />
+                  </div>
+                  <div className="bg-slate-900/90 p-2 rounded-2xs border border-slate-800 text-center overflow-x-auto">
+                    <span className="text-[10px] text-emerald-400 block font-bold mb-1">DIỆN TÍCH MIỀN PHẲNG (S)</span>
+                    <MathDisplay tex={`S = \\int_{${fmt(lower)}}^{${fmt(upper)}} |f(x)|\\,dx \\approx ${fmt(area, 3)}`} />
+                  </div>
                 </div>
+                <div className="bg-slate-900/90 p-2.5 rounded-2xs border border-amber-500/40 text-center overflow-x-auto shadow-xs">
+                  <span className="text-[10px] text-amber-300 block font-bold mb-1">
+                    THỂ TÍCH KHỐI TRÒN XOAY QUAY QUANH TRỤC HOÀNH Ox (V)
+                  </span>
+                  <MathDisplay tex={`V = \\pi \\int_{${fmt(lower)}}^{${fmt(upper)}} [f(x)]^2\\,dx \\approx ${fmt(revolutionVolume, 3)}`} />
+                </div>
+                {signChanges && (
+                  <div className="text-[10px] text-amber-400 font-mono text-center pt-1">
+                    * Đồ thị cắt trục Ox trên đoạn [{fmt(lower)}; {fmt(upper)}], diện tích S được cộng theo trị tuyệt đối.
+                  </div>
+                )}
               </div>
-              {signChanges && (
-                <div className="text-[10px] text-amber-400 font-mono text-center pt-1">
-                  * Đồ thị cắt trục Ox trên đoạn [{fmt(lower)}; {fmt(upper)}], diện tích S được cộng theo trị tuyệt đối.
-                </div>
-              )}
             </div>
-          </div>
-        </Panel>
+          </Panel>
+        </div>
       </div>
     </div>
   );
