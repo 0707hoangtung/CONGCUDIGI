@@ -337,6 +337,7 @@ interface NumberInputProps {
   precision?: number;
   quickOptions?: number[];
   display?: string;
+  className?: string;
 }
 
 function NumberInput({
@@ -351,6 +352,7 @@ function NumberInput({
   color = "amber",
   precision = 2,
   quickOptions,
+  className,
 }: NumberInputProps) {
   const [text, setText] = useState(String(value));
 
@@ -408,7 +410,7 @@ function NumberInput({
   return (
     <div
       id={id ? `${id}-container` : undefined}
-      className="mb-2.5 bg-slate-950/60 border border-slate-800/80 p-2 rounded-xs"
+      className={`${className ?? "mb-2.5"} bg-slate-950/60 border border-slate-800/80 p-2 rounded-xs`}
     >
       <div className="flex justify-between items-center mb-1 gap-2 font-mono">
         <span className="text-[11px] text-slate-300 uppercase tracking-tight font-medium truncate">{label}</span>
@@ -479,6 +481,8 @@ interface LatexFunctionInputProps {
   value: string;
   onChange: (latex: string) => void;
   presets?: { label: string; latex: string }[];
+  hideSymbols?: boolean;
+  hidePresets?: boolean;
 }
 
 function LatexFunctionInput({
@@ -494,6 +498,8 @@ function LatexFunctionInput({
     { label: "cos(2x)", latex: "\\cos(2x)" },
     { label: "½x² − 2", latex: "\\frac{1}{2}x^2 - 2" },
   ],
+  hideSymbols = false,
+  hidePresets = false,
 }: LatexFunctionInputProps) {
   const inputRef = useRef<HTMLInputElement | null>(null);
 
@@ -547,34 +553,36 @@ function LatexFunctionInput({
       </div>
 
       {/* Math symbol insertion toolbar */}
-      <div className="flex gap-1 flex-wrap mb-2">
-        <span className="text-[9px] text-slate-400 font-mono self-center mr-1">Ký tự:</span>
-        {[
-          { label: "x²", sym: "x^2" },
-          { label: "x³", sym: "x^3" },
-          { label: "xⁿ", sym: "^" },
-          { label: "½", sym: "\\frac{1}{2}" },
-          { label: "⅓", sym: "\\frac{1}{3}" },
-          { label: "\\frac{a}{b}", sym: "\\frac{a}{b}" },
-          { label: "\\sin", sym: "\\sin(x)" },
-          { label: "\\cos", sym: "\\cos(x)" },
-          { label: "\\tan", sym: "\\tan(x)" },
-          { label: "\\sqrt{x}", sym: "\\sqrt{x}" },
-          { label: "π", sym: "\\pi" },
-          { label: "+", sym: " + " },
-          { label: "−", sym: " - " },
-        ].map((btn, idx) => (
-          <button
-            key={idx}
-            type="button"
-            onClick={() => insertSymbol(btn.sym)}
-            className="px-1.5 py-0.5 bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-700/80 rounded-2xs text-[10px] font-mono transition-colors active:scale-95"
-            title={`Chèn ${btn.sym}`}
-          >
-            {btn.label}
-          </button>
-        ))}
-      </div>
+      {!hideSymbols && (
+        <div className="flex gap-1 flex-wrap mb-2">
+          <span className="text-[9px] text-slate-400 font-mono self-center mr-1">Ký tự:</span>
+          {[
+            { label: "x²", sym: "x^2" },
+            { label: "x³", sym: "x^3" },
+            { label: "xⁿ", sym: "^" },
+            { label: "½", sym: "\\frac{1}{2}" },
+            { label: "⅓", sym: "\\frac{1}{3}" },
+            { label: "\\frac{a}{b}", sym: "\\frac{a}{b}" },
+            { label: "\\sin", sym: "\\sin(x)" },
+            { label: "\\cos", sym: "\\cos(x)" },
+            { label: "\\tan", sym: "\\tan(x)" },
+            { label: "\\sqrt{x}", sym: "\\sqrt{x}" },
+            { label: "π", sym: "\\pi" },
+            { label: "+", sym: " + " },
+            { label: "−", sym: " - " },
+          ].map((btn, idx) => (
+            <button
+              key={idx}
+              type="button"
+              onClick={() => insertSymbol(btn.sym)}
+              className="px-1.5 py-0.5 bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-700/80 rounded-2xs text-[10px] font-mono transition-colors active:scale-95"
+              title={`Chèn ${btn.sym}`}
+            >
+              {btn.label}
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* Real-time Textbook Grade KaTeX Render */}
       <div className="bg-slate-900/90 border border-slate-800 rounded-2xs p-2 text-center my-1.5 flex flex-col items-center justify-center min-h-[46px] shadow-inner">
@@ -587,7 +595,7 @@ function LatexFunctionInput({
       </div>
 
       {/* Preset Textbook Functions */}
-      {presets && presets.length > 0 && (
+      {!hidePresets && presets && presets.length > 0 && (
         <div className="mt-2 pt-1.5 border-t border-slate-800/80">
           <div className="text-[9px] text-slate-400 font-mono mb-1">CÁC HÀM MẪU SÁCH GIÁO KHOA:</div>
           <div className="flex gap-1 flex-wrap">
@@ -689,13 +697,17 @@ function Formula({ children, id, title = "CALC_MATRIX // OUTPUT" }: { children: 
   return (
     <div
       id={id}
-      className="font-mono text-[11px] bg-slate-950/90 border border-slate-800 rounded-xs p-2.5 text-slate-300 leading-relaxed shadow-inner"
+      className="text-[11px] bg-slate-950/90 border border-slate-800 rounded-xs p-2.5 text-slate-300 leading-relaxed shadow-inner font-mono"
     >
-      <div className="flex items-center justify-between text-[9px] text-slate-500 uppercase tracking-widest border-b border-slate-900 pb-1 mb-1.5">
+      <div className="flex items-center justify-between text-[9px] text-slate-500 uppercase tracking-widest border-b border-slate-900 pb-1 mb-1.5 font-mono">
         <span className="text-emerald-400 font-bold">{title}</span>
         <span>STATUS: LIVE</span>
       </div>
-      <pre className="whitespace-pre-wrap font-mono text-emerald-400/90 selection:bg-emerald-500/30">{children}</pre>
+      {typeof children === "string" ? (
+        <pre className="whitespace-pre-wrap font-mono text-emerald-400/90 selection:bg-emerald-500/30">{children}</pre>
+      ) : (
+        <div className="text-slate-200">{children}</div>
+      )}
     </div>
   );
 }
@@ -1005,12 +1017,16 @@ function GraphGrid({
   scale = SCALE,
   width = VB_W,
   height = VB_H,
+  axisColor,
+  axisWidth = 1.6,
 }: {
   originX?: number;
   originY?: number;
   scale?: number;
   width?: number;
   height?: number;
+  axisColor?: string;
+  axisWidth?: number;
 }) {
   let gridStep = 1;
   let labelStep = 2;
@@ -1056,7 +1072,7 @@ function GraphGrid({
         x={px}
         y={labelY}
         fontSize="9"
-        fill={COLORS.textFaint}
+        fill={axisColor ? "#f1f5f9" : COLORS.textFaint}
         textAnchor="middle"
         fontFamily={MONO_STACK}
       >
@@ -1076,7 +1092,7 @@ function GraphGrid({
         x={labelX}
         y={py + 3}
         fontSize="9"
-        fill={COLORS.textFaint}
+        fill={axisColor ? "#f1f5f9" : COLORS.textFaint}
         textAnchor="end"
         fontFamily={MONO_STACK}
       >
@@ -1085,30 +1101,35 @@ function GraphGrid({
     );
   }
 
+  const effectiveAxisColor = axisColor || COLORS.gridStrong;
+  const effectiveArrowColor = axisColor || COLORS.textMuted;
+  const effectiveLabelColor = axisColor || COLORS.textSecondary;
+  const effectiveOriginColor = axisColor || COLORS.textFaint;
+
   return (
     <g>
       {/* Principal Axes */}
       {hasOx && (
         <>
-          <line x1={0} y1={originY} x2={width} y2={originY} stroke={COLORS.gridStrong} strokeWidth="1.6" />
-          <path d={`M${width - 8},${originY - 3.5} L${width - 1},${originY} L${width - 8},${originY + 3.5}`} fill={COLORS.textMuted} />
-          <text x={width - 12} y={originY - 7} fontSize="11" fill={COLORS.textSecondary} fontFamily={MONO_STACK} fontWeight="600">
+          <line x1={0} y1={originY} x2={width} y2={originY} stroke={effectiveAxisColor} strokeWidth={axisWidth} />
+          <path d={`M${width - 8},${originY - 3.5} L${width - 1},${originY} L${width - 8},${originY + 3.5}`} fill={effectiveArrowColor} />
+          <text x={width - 12} y={originY - 7} fontSize="11" fill={effectiveLabelColor} fontFamily={MONO_STACK} fontWeight="600">
             x
           </text>
         </>
       )}
       {hasOy && (
         <>
-          <line x1={originX} y1={0} x2={originX} y2={height} stroke={COLORS.gridStrong} strokeWidth="1.6" />
-          <path d={`M${originX - 3.5},8 L${originX},1 L${originX + 3.5},8`} fill={COLORS.textMuted} />
-          <text x={originX + 8} y={12} fontSize="11" fill={COLORS.textSecondary} fontFamily={MONO_STACK} fontWeight="600">
+          <line x1={originX} y1={0} x2={originX} y2={height} stroke={effectiveAxisColor} strokeWidth={axisWidth} />
+          <path d={`M${originX - 3.5},8 L${originX},1 L${originX + 3.5},8`} fill={effectiveArrowColor} />
+          <text x={originX + 8} y={12} fontSize="11" fill={effectiveLabelColor} fontFamily={MONO_STACK} fontWeight="600">
             y
           </text>
         </>
       )}
       {labels}
       {hasOx && hasOy && (
-        <text x={originX - 8} y={originY + 12} fontSize="9" fill={COLORS.textFaint} fontFamily={MONO_STACK}>
+        <text x={originX - 8} y={originY + 12} fontSize="9" fill={effectiveOriginColor} fontFamily={MONO_STACK}>
           O
         </text>
       )}
@@ -1146,6 +1167,71 @@ function Arrow({ x1, y1, x2, y2, color, dashed, width }: ArrowProps) {
         strokeLinecap="round"
       />
       <polygon points={`${x2},${y2} ${hx1},${hy1} ${hx2},${hy2}`} fill={color} />
+    </g>
+  );
+}
+
+function VectorSvgLabel({
+  x,
+  y,
+  symbol,
+  color,
+}: {
+  x: number;
+  y: number;
+  symbol: "a" | "b" | "a+b" | "a-b";
+  color: string;
+}) {
+  const renderVectorChar = (char: string, offsetX: number = 0) => (
+    <g transform={`translate(${offsetX}, 0)`}>
+      {/* Arrow line */}
+      <line x1="0" y1="-11" x2="10.5" y2="-11" stroke={color} strokeWidth="1.3" strokeLinecap="round" />
+      {/* Arrowhead */}
+      <path
+        d="M 7.5 -13.2 L 11 -11 L 7.5 -8.8"
+        stroke={color}
+        strokeWidth="1.3"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        fill="none"
+      />
+      {/* Character */}
+      <text
+        x="1"
+        y="0"
+        fontSize="13.5"
+        fontStyle="italic"
+        fontWeight="600"
+        fill={color}
+        fontFamily="Georgia, Cambria, 'Times New Roman', serif"
+      >
+        {char}
+      </text>
+    </g>
+  );
+
+  return (
+    <g transform={`translate(${x}, ${y})`} className="select-none pointer-events-none">
+      {symbol === "a" && renderVectorChar("a")}
+      {symbol === "b" && renderVectorChar("b")}
+      {symbol === "a+b" && (
+        <g>
+          {renderVectorChar("a", 0)}
+          <text x="13.5" y="-0.5" fontSize="12" fontWeight="bold" fill={color} fontFamily="sans-serif">
+            +
+          </text>
+          {renderVectorChar("b", 23.5)}
+        </g>
+      )}
+      {symbol === "a-b" && (
+        <g>
+          {renderVectorChar("a", 0)}
+          <text x="13.5" y="-0.5" fontSize="13" fontWeight="bold" fill={color} fontFamily="sans-serif">
+            −
+          </text>
+          {renderVectorChar("b", 23.5)}
+        </g>
+      )}
     </g>
   );
 }
@@ -1310,7 +1396,7 @@ function CircleModule() {
   };
 
   // Xử lý góc quay tùy ý từ ô nhập:
-  // Quy ước theo yêu cầu: "Độ lớn góc không giới hạn, nếu nhập dấu + thì hiểu là quay cùng chiều kim đồng hồ, nếu nhập dấu - thì hiểu là quay ngược chiều kim đồng hồ"
+  // Quy ước: "+ Ngược CKĐH, - Cùng CKĐH"
   const handleApplyCustomAngle = () => {
     const trimmed = customAngleInput.trim();
     if (!trimmed) return;
@@ -1320,11 +1406,11 @@ function CircleModule() {
     if (isNaN(val) || val === 0) return;
 
     if (isNegative) {
-      // Nhập dấu - : quay ngược chiều kim đồng hồ (+ delta lượng giác)
-      rotateBy(Math.abs(val));
-    } else {
-      // Nhập dấu + hoặc số dương: quay cùng chiều kim đồng hồ (- delta lượng giác)
+      // Nhập dấu - : quay cùng chiều kim đồng hồ (chiều âm)
       rotateBy(-Math.abs(val));
+    } else {
+      // Nhập dấu + hoặc số dương: quay ngược chiều kim đồng hồ (chiều dương)
+      rotateBy(Math.abs(val));
     }
   };
 
@@ -1736,8 +1822,8 @@ function CircleModule() {
             <div className="flex items-center justify-between text-[11px] font-mono">
               <span className="text-slate-400">QUY ƯỚC DẤU GÓC QUAY:</span>
               <span className="text-[10.5px]">
-                <span className="text-amber-400 font-bold">+</span> Cùng CKĐH ·{" "}
-                <span className="text-cyan-400 font-bold">−</span> Ngược CKĐH
+                <span className="text-cyan-400 font-bold">+</span> Ngược CKĐH ·{" "}
+                <span className="text-amber-400 font-bold">−</span> Cùng CKĐH
               </span>
             </div>
 
@@ -1776,9 +1862,9 @@ function CircleModule() {
               <span>
                 Chiều quay:{" "}
                 {customAngleInput.trim().startsWith("-") ? (
-                  <span className="text-cyan-400 font-bold">↺ Quay NGƯỢC chiều kim đồng hồ</span>
+                  <span className="text-amber-400 font-bold">↻ Quay CÙNG chiều kim đồng hồ (−)</span>
                 ) : (
-                  <span className="text-amber-400 font-bold">↻ Quay CÙNG chiều kim đồng hồ</span>
+                  <span className="text-cyan-400 font-bold">↺ Quay NGƯỢC chiều kim đồng hồ (+)</span>
                 )}
               </span>
               <span className="text-slate-400 text-[10px]">Nhấn Enter để quay</span>
@@ -1804,8 +1890,8 @@ function CircleModule() {
                     setCustomAngleInput(item.val);
                     const isNeg = item.val.startsWith("-");
                     const num = parseFloat(item.val.replace(/^[+-]/, ""));
-                    if (isNeg) rotateBy(num);
-                    else rotateBy(-num);
+                    if (isNeg) rotateBy(-num);
+                    else rotateBy(num);
                   }}
                   className="text-[10px] px-1.5 py-0.5 bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 rounded-2xs font-mono cursor-pointer transition-colors"
                 >
@@ -1955,7 +2041,15 @@ function VectorModule() {
               viewBox={`0 0 ${VB_W} ${VB_H}`}
               className={`w-full ${isFullScreen ? "h-full max-h-[calc(100vh-100px)]" : "h-auto"} block touch-none ${nav.isPanning ? "cursor-grabbing" : "cursor-grab"}`}
             >
-              <GraphGrid originX={nav.origin.x} originY={nav.origin.y} scale={nav.scale} width={VB_W} height={VB_H} />
+              <GraphGrid
+                originX={nav.origin.x}
+                originY={nav.origin.y}
+                scale={nav.scale}
+                width={VB_W}
+                height={VB_H}
+                axisColor="#ffffff"
+                axisWidth={2}
+              />
               {mode === "dot" && arcPath && <path d={arcPath} fill={COLORS.rose} opacity="0.22" stroke={COLORS.rose} strokeWidth="1" />}
               {mode === "sum" && (
                 <>
@@ -1967,21 +2061,23 @@ function VectorModule() {
               {mode === "diff" && <Arrow x1={P2.x} y1={P2.y} x2={P1.x} y2={P1.y} color={COLORS.rose} width={2.8} />}
               <Arrow x1={O.x} y1={O.y} x2={P1.x} y2={P1.y} color={COLORS.amber} />
               <Arrow x1={O.x} y1={O.y} x2={P2.x} y2={P2.y} color={COLORS.cyan} />
-              <text x={P1.x + 8} y={P1.y - 8} fontSize="13" fontStyle="italic" fill={COLORS.amber} fontFamily={MONO_STACK}>
-                a
-              </text>
-              <text x={P2.x + 8} y={P2.y - 8} fontSize="13" fontStyle="italic" fill={COLORS.cyan} fontFamily={MONO_STACK}>
-                b
-              </text>
+              <VectorSvgLabel x={P1.x + 8} y={P1.y - 8} symbol="a" color={COLORS.amber} />
+              <VectorSvgLabel x={P2.x + 8} y={P2.y - 8} symbol="b" color={COLORS.cyan} />
               {mode === "sum" && (
-                <text x={nav.toPxX(sum.x) + 8} y={nav.toPxY(sum.y) - 8} fontSize="13" fontStyle="italic" fill={COLORS.emerald} fontFamily={MONO_STACK}>
-                  a+b
-                </text>
+                <VectorSvgLabel
+                  x={nav.toPxX(sum.x) + 8}
+                  y={nav.toPxY(sum.y) - 8}
+                  symbol="a+b"
+                  color={COLORS.emerald}
+                />
               )}
               {mode === "diff" && (
-                <text x={(P1.x + P2.x) / 2 + 10} y={(P1.y + P2.y) / 2} fontSize="13" fontStyle="italic" fill={COLORS.rose} fontFamily={MONO_STACK}>
-                  a−b
-                </text>
+                <VectorSvgLabel
+                  x={(P1.x + P2.x) / 2 + 10}
+                  y={(P1.y + P2.y) / 2}
+                  symbol="a-b"
+                  color={COLORS.rose}
+                />
               )}
             </svg>
             <div className="absolute bottom-1.5 left-2 right-2 flex items-center justify-between font-mono text-[9px] text-slate-400 pointer-events-none">
@@ -2002,24 +2098,48 @@ function VectorModule() {
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-center py-1">
             <div className="bg-slate-950 p-2 rounded-2xs border border-slate-800">
-              <span className="text-[10px] text-amber-400 block font-bold">Vectơ a</span>
-              <span className="text-slate-200 font-mono text-xs">({v1x}; {v1y}) · |a| = {fmt(mag1, 2)}</span>
+              <span className="text-[10px] text-amber-400 block font-bold">
+                Vectơ <MathDisplay tex="\vec{a}" inline />
+              </span>
+              <span className="text-slate-200 font-mono text-xs">
+                ({v1x}; {v1y}) · <MathDisplay tex="|\vec{a}|" inline /> = {fmt(mag1, 2)}
+              </span>
             </div>
             <div className="bg-slate-950 p-2 rounded-2xs border border-slate-800">
-              <span className="text-[10px] text-cyan-400 block font-bold">Vectơ b</span>
-              <span className="text-slate-200 font-mono text-xs">({v2x}; {v2y}) · |b| = {fmt(mag2, 2)}</span>
+              <span className="text-[10px] text-cyan-400 block font-bold">
+                Vectơ <MathDisplay tex="\vec{b}" inline />
+              </span>
+              <span className="text-slate-200 font-mono text-xs">
+                ({v2x}; {v2y}) · <MathDisplay tex="|\vec{b}|" inline /> = {fmt(mag2, 2)}
+              </span>
             </div>
             <div className="bg-slate-950 p-2 rounded-2xs border border-slate-800">
-              <span className="text-[10px] text-rose-400 block font-bold">Tích vô hướng a·b</span>
-              <span className="text-slate-200 font-mono text-xs">{fmt(dot)} · ∠(a,b) = {fmt(angleDeg, 1)}°</span>
+              <span className="text-[10px] text-rose-400 block font-bold">
+                Tích vô hướng <MathDisplay tex="\vec{a} \cdot \vec{b}" inline />
+              </span>
+              <span className="text-slate-200 font-mono text-xs">
+                {fmt(dot)} · <MathDisplay tex="(\vec{a}, \vec{b})" inline /> = {fmt(angleDeg, 1)}°
+              </span>
             </div>
           </div>
         </div>
 
         <Note id="vector-hint">
-          {mode === "sum" && "Tổng a+b dựng theo quy tắc hình bình hành xuất phát từ gốc O."}
-          {mode === "diff" && "Hiệu a−b nối từ mút vectơ b tới mút vectơ a (quy tắc 3 điểm: OA − OB = BA)."}
-          {mode === "dot" && "Góc θ giữa 2 vectơ: cos θ = (a·b) / (|a|·|b|). Vuông góc khi tích vô hướng = 0."}
+          {mode === "sum" && (
+            <span>
+              Tổng <MathDisplay tex="\vec{a} + \vec{b}" inline /> dựng theo quy tắc hình bình hành xuất phát từ gốc O.
+            </span>
+          )}
+          {mode === "diff" && (
+            <span>
+              Hiệu <MathDisplay tex="\vec{a} - \vec{b}" inline /> nối từ mút vectơ <MathDisplay tex="\vec{b}" inline /> tới mút vectơ <MathDisplay tex="\vec{a}" inline /> (quy tắc 3 điểm: <MathDisplay tex="\vec{OA} - \vec{OB} = \vec{BA}" inline />).
+            </span>
+          )}
+          {mode === "dot" && (
+            <span>
+              Góc θ giữa 2 vectơ: <MathDisplay tex="\cos \theta = \frac{\vec{a} \cdot \vec{b}}{|\vec{a}| \cdot |\vec{b}|}" inline />. Vuông góc khi tích vô hướng = 0.
+            </span>
+          )}
         </Note>
       </div>
 
@@ -2037,17 +2157,110 @@ function VectorModule() {
             ]}
           />
 
-          <SectionLabel iconColor="bg-amber-500">HỘP NHẬP TOẠ ĐỘ VECTƠ a</SectionLabel>
-          <NumberInput id="input-v1x" label="Hoành độ a.x" value={v1x} min={-8} max={8} step={0.5} onChange={setV1x} color="amber" quickOptions={[-3, -1, 1, 3, 4]} />
-          <NumberInput id="input-v1y" label="Tung độ a.y" value={v1y} min={-8} max={8} step={0.5} onChange={setV1y} color="amber" quickOptions={[-3, -1, 1, 2, 3]} />
+          <SectionLabel iconColor="bg-amber-500">
+            HỘP NHẬP TOẠ ĐỘ VECTƠ <MathDisplay tex="\vec{a}" inline className="ml-1 text-amber-400 font-bold" />
+          </SectionLabel>
+          <div className="grid grid-cols-2 gap-2 mb-2.5">
+            <NumberInput
+              id="input-v1x"
+              label="Hoành độ A.X"
+              value={v1x}
+              min={-8}
+              max={8}
+              step={0.5}
+              onChange={setV1x}
+              color="amber"
+              quickOptions={[-3, -1, 1, 3, 4]}
+              className="mb-0"
+            />
+            <NumberInput
+              id="input-v1y"
+              label="Tung độ A.Y"
+              value={v1y}
+              min={-8}
+              max={8}
+              step={0.5}
+              onChange={setV1y}
+              color="amber"
+              quickOptions={[-3, -1, 1, 2, 3]}
+              className="mb-0"
+            />
+          </div>
 
-          <SectionLabel iconColor="bg-cyan-500">HỘP NHẬP TOẠ ĐỘ VECTƠ b</SectionLabel>
-          <NumberInput id="input-v2x" label="Hoành độ b.x" value={v2x} min={-8} max={8} step={0.5} onChange={setV2x} color="cyan" quickOptions={[-3, -1, 1, 2, 4]} />
-          <NumberInput id="input-v2y" label="Tung độ b.y" value={v2y} min={-8} max={8} step={0.5} onChange={setV2y} color="cyan" quickOptions={[-3, -1, 1, 3, 4]} />
+          <SectionLabel iconColor="bg-cyan-500">
+            HỘP NHẬP TOẠ ĐỘ VECTƠ <MathDisplay tex="\vec{b}" inline className="ml-1 text-cyan-400 font-bold" />
+          </SectionLabel>
+          <div className="grid grid-cols-2 gap-2 mb-2.5">
+            <NumberInput
+              id="input-v2x"
+              label="Hoành độ B.X"
+              value={v2x}
+              min={-8}
+              max={8}
+              step={0.5}
+              onChange={setV2x}
+              color="cyan"
+              quickOptions={[-3, -1, 1, 2, 4]}
+              className="mb-0"
+            />
+            <NumberInput
+              id="input-v2y"
+              label="Tung độ B.Y"
+              value={v2y}
+              min={-8}
+              max={8}
+              step={0.5}
+              onChange={setV2y}
+              color="cyan"
+              quickOptions={[-3, -1, 1, 3, 4]}
+              className="mb-0"
+            />
+          </div>
 
           <SectionLabel iconColor="bg-emerald-500">KẾT QUẢ ĐẠI SỐ</SectionLabel>
-          <Formula id="vector-results" title="VECTOR_MATRIX">
-            {`a = (${fmt(v1x, 1)}; ${fmt(v1y, 1)})   |a| = ${fmt(mag1)}\nb = (${fmt(v2x, 1)}; ${fmt(v2y, 1)})   |b| = ${fmt(mag2)}\na+b = (${fmt(sum.x, 1)}; ${fmt(sum.y, 1)})\na−b = (${fmt(diff.x, 1)}; ${fmt(diff.y, 1)})\na·b = ${fmt(dot)}\ngóc(a,b) ≈ ${fmt(angleDeg, 1)}°`}
+          <Formula id="vector-results" title="KẾT QUẢ ĐẠI SỐ // VECTOR_MATRIX">
+            <div className="flex flex-col gap-1.5 font-mono text-[12px]">
+              <div className="flex items-center justify-between py-1.5 px-2.5 bg-slate-900/80 border border-slate-800/90 rounded-2xs">
+                <span className="text-slate-100 flex items-center">
+                  <MathDisplay tex={`\\vec{a} = (${fmt(v1x, 1)};\\; ${fmt(v1y, 1)})`} inline />
+                </span>
+                <span className="text-amber-400 font-mono text-xs">
+                  <MathDisplay tex={`|\\vec{a}| = ${fmt(mag1)}`} inline />
+                </span>
+              </div>
+              <div className="flex items-center justify-between py-1.5 px-2.5 bg-slate-900/80 border border-slate-800/90 rounded-2xs">
+                <span className="text-slate-100 flex items-center">
+                  <MathDisplay tex={`\\vec{b} = (${fmt(v2x, 1)};\\; ${fmt(v2y, 1)})`} inline />
+                </span>
+                <span className="text-cyan-400 font-mono text-xs">
+                  <MathDisplay tex={`|\\vec{b}| = ${fmt(mag2)}`} inline />
+                </span>
+              </div>
+              <div className="flex items-center justify-between py-1.5 px-2.5 bg-slate-900/80 border border-slate-800/90 rounded-2xs">
+                <span className="text-emerald-300 flex items-center">
+                  <MathDisplay tex={`\\vec{a} + \\vec{b} = (${fmt(sum.x, 1)};\\; ${fmt(sum.y, 1)})`} inline />
+                </span>
+                <span className="text-emerald-400/90 text-[11px]">
+                  <MathDisplay tex={`|\\vec{a} + \\vec{b}| = ${fmt(Math.hypot(sum.x, sum.y))}`} inline />
+                </span>
+              </div>
+              <div className="flex items-center justify-between py-1.5 px-2.5 bg-slate-900/80 border border-slate-800/90 rounded-2xs">
+                <span className="text-rose-300 flex items-center">
+                  <MathDisplay tex={`\\vec{a} - \\vec{b} = (${fmt(diff.x, 1)};\\; ${fmt(diff.y, 1)})`} inline />
+                </span>
+                <span className="text-rose-400/90 text-[11px]">
+                  <MathDisplay tex={`|\\vec{a} - \\vec{b}| = ${fmt(Math.hypot(diff.x, diff.y))}`} inline />
+                </span>
+              </div>
+              <div className="flex items-center justify-between py-1.5 px-2.5 bg-slate-900/80 border border-slate-800/90 rounded-2xs">
+                <span className="text-slate-100 flex items-center">
+                  <MathDisplay tex={`\\vec{a} \\cdot \\vec{b} = ${fmt(dot)}`} inline />
+                </span>
+                <span className="text-amber-300 font-mono text-xs">
+                  <MathDisplay tex={`(\\vec{a},\\, \\vec{b}) \\approx ${fmt(angleDeg, 1)}^\\circ`} inline />
+                </span>
+              </div>
+            </div>
           </Formula>
         </Panel>
       </div>
@@ -2059,12 +2272,6 @@ function VectorModule() {
    MODULE 4 — ĐẠO HÀM & TIẾP TUYẾN (Lớp 11, 2D)
    ============================================================ */
 function DerivativeModule() {
-  const [inputMode, setInputMode] = useState<"standard" | "latex">("standard");
-  const [type, setType] = useState<"quadratic" | "trig" | "cubic">("quadratic");
-  const [a, setA] = useState(0.4);
-  const [b, setB] = useState(-1);
-  const [c, setC] = useState(-1);
-  const [trigKind, setTrigKind] = useState<"sin" | "cos">("sin");
   const [customLatex, setCustomLatex] = useState("0.4x^2 - x - 1");
   const [x0, setX0] = useState(2);
   const [showSecant, setShowSecant] = useState(false);
@@ -2088,46 +2295,16 @@ function DerivativeModule() {
     height: VB_H,
   });
 
-  useEffect(() => {
-    if (type === "quadratic") {
-      setA(0.4);
-      setB(-1);
-      setC(-1);
-      setX0(2);
-    } else if (type === "trig") {
-      setA(1.5);
-      setB(1);
-      setC(0);
-      setX0(1);
-    } else {
-      setA(0.12);
-      setB(-0.3);
-      setC(-1);
-      setX0(1.5);
-    }
-  }, [type]);
-
   const parsedCustomFn = useMemo(() => parseMathOrLatexToFunction(customLatex), [customLatex]);
 
   const fn = useMemo(() => {
-    if (inputMode === "latex") {
-      return parsedCustomFn || ((x: number) => 0.4 * x * x - x - 1);
-    }
-    if (type === "quadratic") return (x: number) => a * x * x + b * x + c;
-    if (type === "trig") return (x: number) => a * (trigKind === "sin" ? Math.sin(b * x + c) : Math.cos(b * x + c));
-    return (x: number) => a * x * x * x + b * x * x + c * x;
-  }, [inputMode, parsedCustomFn, type, a, b, c, trigKind]);
+    return parsedCustomFn || ((x: number) => 0.4 * x * x - x - 1);
+  }, [parsedCustomFn]);
 
   const fprime0 = useMemo(() => {
-    if (inputMode === "latex") {
-      // Numerical derivative via central difference
-      const h = 0.0001;
-      return (fn(x0 + h) - fn(x0 - h)) / (2 * h);
-    }
-    if (type === "quadratic") return 2 * a * x0 + b;
-    if (type === "cubic") return 3 * a * x0 * x0 + 2 * b * x0 + c;
-    return trigKind === "sin" ? a * b * Math.cos(b * x0 + c) : -a * b * Math.sin(b * x0 + c);
-  }, [inputMode, fn, type, a, b, c, x0, trigKind]);
+    const h = 0.0001;
+    return (fn(x0 + h) - fn(x0 - h)) / (2 * h);
+  }, [fn, x0]);
 
   const f0 = fn(x0);
   const tangentFn = (x: number) => fprime0 * (x - x0) + f0;
@@ -2143,13 +2320,6 @@ function DerivativeModule() {
   const x1 = x0 + dx;
   const f1 = fn(x1);
   const secantSlope = dx !== 0 ? (f1 - f0) / dx : NaN;
-
-  const latexFormula = useMemo(() => {
-    if (inputMode === "latex") return customLatex;
-    if (type === "quadratic") return `${fmt(a)}x^2 ${signStr(b)} ${fmt(Math.abs(b))}x ${signStr(c)} ${fmt(Math.abs(c))}`;
-    if (type === "trig") return `${fmt(a)}\\${trigKind}(${fmt(b)}x ${signStr(c)} ${fmt(Math.abs(c))})`;
-    return `${fmt(a, 2)}x^3 ${signStr(b)} ${fmt(Math.abs(b))}x^2 ${signStr(c)} ${fmt(Math.abs(c))}x`;
-  }, [inputMode, customLatex, type, a, b, c, trigKind]);
 
   return (
     <div id="module-derivative" className="grid grid-cols-1 md:grid-cols-12 gap-3">
@@ -2178,12 +2348,20 @@ function DerivativeModule() {
               viewBox={`0 0 ${VB_W} ${VB_H}`}
               className={`w-full ${isFullScreen ? "h-full max-h-[calc(100vh-100px)]" : "h-auto"} block touch-none ${nav.isPanning ? "cursor-grabbing" : "cursor-grab"}`}
             >
-              <GraphGrid originX={nav.origin.x} originY={nav.origin.y} scale={nav.scale} width={VB_W} height={VB_H} />
-              <path d={curvePath} stroke={COLORS.amber} strokeWidth="2.4" fill="none" strokeLinejoin="round" />
-              <path d={tangentPath} stroke={COLORS.cyan} strokeWidth="2" fill="none" strokeDasharray="6 3" />
-              {showSecant && <line x1={nav.toPxX(x0)} y1={nav.toPxY(f0)} x2={nav.toPxX(x1)} y2={nav.toPxY(f1)} stroke={COLORS.rose} strokeWidth="2" />}
-              {showSecant && <circle cx={nav.toPxX(x1)} cy={nav.toPxY(f1)} r="4" fill={COLORS.rose} />}
-              <circle cx={nav.toPxX(x0)} cy={nav.toPxY(f0)} r="5.5" fill={COLORS.text} stroke={COLORS.bg} strokeWidth="1.5" />
+              <GraphGrid
+                originX={nav.origin.x}
+                originY={nav.origin.y}
+                scale={nav.scale}
+                width={VB_W}
+                height={VB_H}
+                axisColor="#ffffff"
+                axisWidth={2}
+              />
+              <path d={curvePath} stroke={COLORS.amber} strokeWidth="2" fill="none" strokeLinejoin="round" />
+              <path d={tangentPath} stroke={COLORS.cyan} strokeWidth="2" fill="none" />
+              {showSecant && <line x1={nav.toPxX(x0)} y1={nav.toPxY(f0)} x2={nav.toPxX(x1)} y2={nav.toPxY(f1)} stroke={COLORS.rose} strokeWidth="2" strokeDasharray="4 3" />}
+              {showSecant && <circle cx={nav.toPxX(x1)} cy={nav.toPxY(f1)} r="3" fill={COLORS.rose} />}
+              <circle cx={nav.toPxX(x0)} cy={nav.toPxY(f0)} r="3" fill="#ffffff" stroke="#0f172a" strokeWidth="1" />
             </svg>
             <div className="absolute bottom-1.5 left-2 right-2 flex items-center justify-between font-mono text-[9px] text-slate-400 pointer-events-none">
               <span className="bg-slate-900/90 border border-slate-800 px-1.5 py-0.5 rounded-2xs text-cyan-400">
@@ -2196,115 +2374,23 @@ function DerivativeModule() {
           </div>
         </Panel>
 
-        {/* Textbook-grade formula presentation */}
-        <div className="bg-slate-900/80 border border-slate-800 rounded-xs p-3 font-mono shadow-sm">
-          <div className="flex items-center justify-between text-[9px] text-slate-400 uppercase tracking-widest border-b border-slate-800 pb-1 mb-2">
-            <span className="text-cyan-400 font-bold flex items-center gap-1.5">
-              <span className="w-1.5 h-1.5 bg-cyan-400 rounded-full"></span>
-              PHƯƠNG TRÌNH TIẾP TUYẾN TẠI M(x₀; y₀) (CHUẨN SÁCH GIÁO KHOA)
-            </span>
-            <span className="text-slate-500">LỚP 11</span>
-          </div>
-          <div className="space-y-2 py-1">
-            <div className="text-center text-amber-300 text-sm">
-              <MathDisplay tex={`y = f(x) = ${latexFormula}`} />
-            </div>
-            <div className="text-center text-cyan-300 text-sm font-bold">
-              <MathDisplay tex={`(d): y = f'(x_0)(x - x_0) + f(x_0) \\implies y = ${fmt(fprime0, 2)}(x - ${fmt(x0)}) ${signStr(f0)} ${fmt(Math.abs(f0), 2)}`} />
-            </div>
-            {showSecant && (
-              <div className="text-center text-rose-300 text-xs border-t border-slate-800/80 pt-1.5">
-                <MathDisplay tex={`k_{\\text{cát tuyến}} = \\frac{f(x_0 + \\Delta x) - f(x_0)}{\\Delta x} = \\frac{${fmt(f1, 2)} - (${fmt(f0, 2)})}{${fmt(dx)}} = ${fmt(secantSlope, 3)}`} />
-              </div>
-            )}
-          </div>
-        </div>
-
         <Note id="derivative-hint">
-          Nét đứt màu xanh cyan là tiếp tuyến tại điểm M. Nét màu đỏ là cát tuyến (khi Δx → 0, cát tuyến tiến tới tiếp tuyến theo định nghĩa đạo hàm).
+          Đường thẳng màu xanh cyan (nét liền) là tiếp tuyến tại tiếp điểm M (điểm màu trắng).
+          {showSecant && " Nét đứt màu đỏ là cát tuyến (khi Δx → 0, cát tuyến tiến tới tiếp tuyến theo định nghĩa đạo hàm)."}
         </Note>
       </div>
 
       <div className="md:col-span-4">
         <Panel id="derivative-controls-panel" title="ĐIỀU KHIỂN TIẾP ĐIỂM" badge="DERIV_CTRL">
-          <SectionLabel iconColor="bg-indigo-500">CHẾ ĐỘ NHẬP LIỆU</SectionLabel>
-          <div className="flex bg-slate-950 p-0.5 rounded-2xs border border-slate-800 mb-3">
-            <button
-              type="button"
-              id="btn-deriv-mode-std"
-              onClick={() => setInputMode("standard")}
-              className={`flex-1 py-1 text-[10px] font-mono rounded-2xs transition-colors ${
-                inputMode === "standard"
-                  ? "bg-cyan-500/20 text-cyan-300 font-bold border border-cyan-500/40"
-                  : "text-slate-400 hover:text-slate-200"
-              }`}
-            >
-              1. Dạng chuẩn
-            </button>
-            <button
-              type="button"
-              id="btn-deriv-mode-latex"
-              onClick={() => setInputMode("latex")}
-              className={`flex-1 py-1 text-[10px] font-mono rounded-2xs transition-colors ${
-                inputMode === "latex"
-                  ? "bg-amber-500/20 text-amber-300 font-bold border border-amber-500/40"
-                  : "text-slate-400 hover:text-slate-200"
-              }`}
-            >
-              2. Gõ biểu thức LaTeX
-            </button>
-          </div>
-
-          {inputMode === "latex" ? (
-            <LatexFunctionInput
-              id="input-deriv-latex"
-              value={customLatex}
-              onChange={setCustomLatex}
-              presets={[
-                { label: "0.4x² − x − 1", latex: "0.4x^2 - x - 1" },
-                { label: "x³ − 3x", latex: "x^3 - 3x" },
-                { label: "sin(2x)", latex: "\\sin(2x)" },
-                { label: "cos(x)", latex: "\\cos(x)" },
-                { label: "−x² + 4", latex: "-x^2 + 4" },
-              ]}
-            />
-          ) : (
-            <>
-              <SectionLabel iconColor="bg-indigo-500">DẠNG HÀM SỐ</SectionLabel>
-              <ChipGroup
-                id="deriv-type-chips"
-                value={type}
-                onChange={setType}
-                options={[
-                  { value: "quadratic", label: "Bậc hai" },
-                  { value: "trig", label: "Lượng giác" },
-                  { value: "cubic", label: "Bậc ba" },
-                ]}
-              />
-
-              <SectionLabel iconColor="bg-amber-500">HỘP NHẬP THAM SỐ HÀM</SectionLabel>
-              {type === "quadratic" && (
-                <>
-                  <NumberInput id="input-deriv-qa" label="Hệ số a" value={a} min={-5} max={5} step={0.1} onChange={setA} color="amber" quickOptions={[-1, 0.4, 1, 2]} />
-                  <NumberInput id="input-deriv-qb" label="Hệ số b" value={b} min={-5} max={5} step={0.1} onChange={setB} color="cyan" quickOptions={[-2, -1, 0, 1, 2]} />
-                  <NumberInput id="input-deriv-qc" label="Hệ số c" value={c} min={-5} max={5} step={0.1} onChange={setC} color="emerald" quickOptions={[-2, -1, 0, 1, 3]} />
-                </>
-              )}
-              {type === "trig" && (
-                <>
-                  <NumberInput id="input-deriv-ta" label="Biên độ a" value={a} min={0.2} max={4} step={0.1} onChange={setA} color="amber" quickOptions={[0.5, 1, 1.5, 2]} />
-                  <NumberInput id="input-deriv-tb" label="Tần số b" value={b} min={0.2} max={4} step={0.1} onChange={setB} color="cyan" quickOptions={[0.5, 1, 2]} />
-                </>
-              )}
-              {type === "cubic" && (
-                <>
-                  <NumberInput id="input-deriv-ca" label="Hệ số a" value={a} min={-0.5} max={0.5} step={0.02} onChange={setA} color="amber" quickOptions={[-0.2, 0.12, 0.3]} />
-                  <NumberInput id="input-deriv-cb" label="Hệ số b" value={b} min={-2} max={2} step={0.1} onChange={setB} color="cyan" quickOptions={[-1, -0.3, 0, 1]} />
-                  <NumberInput id="input-deriv-cc" label="Hệ số c" value={c} min={-3} max={3} step={0.1} onChange={setC} color="emerald" quickOptions={[-2, -1, 0, 2]} />
-                </>
-              )}
-            </>
-          )}
+          <SectionLabel iconColor="bg-amber-500">GÕ BIỂU THỨC LATEX</SectionLabel>
+          <LatexFunctionInput
+            id="input-deriv-latex"
+            label="BIỂU THỨC HÀM SỐ f(x)"
+            value={customLatex}
+            onChange={setCustomLatex}
+            hideSymbols={true}
+            hidePresets={true}
+          />
 
           <SectionLabel iconColor="bg-cyan-500">HỘP NHẬP TIẾP ĐIỂM x₀ & CÁT TUYẾN</SectionLabel>
           <NumberInput id="input-x0" label="Hoành độ tiếp điểm x₀" value={x0} min={-5} max={5} step={0.1} onChange={setX0} color="cyan" quickOptions={[-2, -1, 0, 1, 2, 3]} />
@@ -2313,6 +2399,36 @@ function DerivativeModule() {
           {showSecant && (
             <NumberInput id="input-dx" label="Gia số Δx" value={dx} min={0.05} max={4} step={0.05} onChange={setDx} color="rose" quickOptions={[0.1, 0.5, 1.0, 1.5, 2.0]} />
           )}
+
+          {/* Textbook-grade formula presentation */}
+          <div className="mt-3 bg-slate-950/90 border border-slate-800 rounded-xs p-3 font-mono shadow-sm">
+            <div className="flex items-center justify-between text-[9px] text-slate-400 uppercase tracking-widest border-b border-slate-800 pb-1 mb-2">
+              <span className="text-cyan-400 font-bold flex items-center gap-1.5">
+                <span className="w-1.5 h-1.5 bg-cyan-400 rounded-full"></span>
+                PHƯƠNG TRÌNH TIẾP TUYẾN TẠI M(x₀; y₀)
+              </span>
+              <span className="text-slate-500">LỚP 11</span>
+            </div>
+            <div className="space-y-1.5 py-1">
+              {/* Dòng 1: Hàm số f(x) */}
+              <div className="text-center text-amber-300 text-sm overflow-x-auto py-0.5">
+                <MathDisplay tex={`y = f(x) = ${customLatex || "0"}`} />
+              </div>
+              {/* Dòng 2: Công thức tổng quát tiếp tuyến */}
+              <div className="text-center text-cyan-300 text-sm overflow-x-auto py-0.5 font-medium">
+                <MathDisplay tex="(d): y = f'(x_0)(x - x_0) + f(x_0)" />
+              </div>
+              {/* Dòng 3: Dòng suy ra thế số */}
+              <div className="text-center text-cyan-400 text-sm font-bold overflow-x-auto py-0.5">
+                <MathDisplay tex={`\\implies y = ${fmt(fprime0, 2)}(x ${x0 >= 0 ? `- ${fmt(x0)}` : `+ ${fmt(Math.abs(x0))}`}) ${signStr(f0)} ${fmt(Math.abs(f0), 2)}`} />
+              </div>
+              {showSecant && (
+                <div className="text-center text-rose-300 text-xs border-t border-slate-800/80 pt-1.5 overflow-x-auto">
+                  <MathDisplay tex={`k_{\\text{cát tuyến}} = \\frac{f(x_0 + \\Delta x) - f(x_0)}{\\Delta x} = \\frac{${fmt(f1, 2)} - (${fmt(f0, 2)})}{${fmt(dx)}} = ${fmt(secantSlope, 3)}`} />
+                </div>
+              )}
+            </div>
+          </div>
         </Panel>
       </div>
     </div>
@@ -2322,16 +2438,21 @@ function DerivativeModule() {
 /* ============================================================
    MODULE 5 — TÍCH PHÂN & DIỆN TÍCH HÌNH PHẲNG (Lớp 12, 2D)
    ============================================================ */
+const AREA_COLOR_PALETTE = [
+  { name: "Lục bảo", hex: "#10b981" },
+  { name: "Hổ phách", hex: "#f59e0b" },
+  { name: "Xanh Cyan", hex: "#06b6d4" },
+  { name: "Lam biếc", hex: "#3b82f6" },
+  { name: "Thạch anh", hex: "#a855f7" },
+  { name: "Đỏ hồng", hex: "#f43f5e" },
+  { name: "Cam sáng", hex: "#f97316" },
+];
+
 function IntegralModule() {
-  const [inputMode, setInputMode] = useState<"standard" | "latex">("standard");
-  const [type, setType] = useState<"quadratic" | "trig" | "cubic">("quadratic");
-  const [a, setA] = useState(-0.35);
-  const [b, setB] = useState(0);
-  const [c, setC] = useState(3.2);
-  const [trigKind, setTrigKind] = useState<"sin" | "cos">("sin");
   const [customLatex, setCustomLatex] = useState("-0.35x^2 + 3.2");
   const [lo, setLo] = useState(-2);
   const [hi, setHi] = useState(2);
+  const [areaColor, setAreaColor] = useState("#10b981");
   const [isFullScreen, setIsFullScreen] = useState(false);
 
   useEffect(() => {
@@ -2351,38 +2472,11 @@ function IntegralModule() {
     height: VB_H,
   });
 
-  useEffect(() => {
-    if (type === "quadratic") {
-      setA(-0.35);
-      setB(0);
-      setC(3.2);
-      setLo(-2);
-      setHi(2);
-    } else if (type === "trig") {
-      setA(1.5);
-      setB(1);
-      setC(0);
-      setLo(0);
-      setHi(3.14);
-    } else {
-      setA(0.2);
-      setB(-0.4);
-      setC(-1);
-      setLo(-1);
-      setHi(2.5);
-    }
-  }, [type]);
-
   const parsedCustomFn = useMemo(() => parseMathOrLatexToFunction(customLatex), [customLatex]);
 
   const fn = useMemo(() => {
-    if (inputMode === "latex") {
-      return parsedCustomFn || ((x: number) => -0.35 * x * x + 3.2);
-    }
-    if (type === "quadratic") return (x: number) => a * x * x + b * x + c;
-    if (type === "trig") return (x: number) => a * (trigKind === "sin" ? Math.sin(b * x + c) : Math.cos(b * x + c));
-    return (x: number) => a * x * x * x + b * x * x + c * x;
-  }, [inputMode, parsedCustomFn, type, a, b, c, trigKind]);
+    return parsedCustomFn || ((x: number) => -0.35 * x * x + 3.2);
+  }, [parsedCustomFn]);
 
   const lower = Math.min(lo, hi);
   const upper = Math.max(lo, hi);
@@ -2425,13 +2519,6 @@ function IntegralModule() {
     return d;
   }, [fn, lower, upper, nav.toPxX, nav.toPxY]);
 
-  const latexFormula = useMemo(() => {
-    if (inputMode === "latex") return customLatex;
-    if (type === "quadratic") return `${fmt(a)}x^2 ${signStr(c)} ${fmt(Math.abs(c))}`;
-    if (type === "trig") return `${fmt(a)}\\${trigKind}(${fmt(b)}x)`;
-    return `${fmt(a, 2)}x^3 ${signStr(b)} ${fmt(Math.abs(b))}x^2 ${signStr(c)} ${fmt(Math.abs(c))}x`;
-  }, [inputMode, customLatex, type, a, b, c, trigKind]);
-
   return (
     <div id="module-integral" className="grid grid-cols-1 md:grid-cols-12 gap-3">
       <div className="md:col-span-8 flex flex-col gap-3">
@@ -2443,7 +2530,7 @@ function IntegralModule() {
           onToggleFullScreen={() => setIsFullScreen((f) => !f)}
           onDownloadImage={() => downloadSvgAsPng(nav.bind.ref.current, `tich-phan-dien-tich-${Date.now()}`, 2)}
           downloadLabel="TẢI ẢNH (PNG)"
-          action={<span className="text-emerald-400 font-mono text-[10px]">S = {fmt(area, 3)} đvdt</span>}
+          action={<span className="font-mono text-[10px]" style={{ color: areaColor }}>S = {fmt(area, 3)} đvdt</span>}
         >
           <div className={`relative bg-slate-950 border border-slate-800/80 rounded-2xs overflow-hidden select-none ${isFullScreen ? "w-full flex-1 h-full min-h-0 flex items-center justify-center" : ""}`}>
             <Canvas2DNavHUD
@@ -2459,8 +2546,16 @@ function IntegralModule() {
               viewBox={`0 0 ${VB_W} ${VB_H}`}
               className={`w-full ${isFullScreen ? "h-full max-h-[calc(100vh-100px)]" : "h-auto"} block touch-none ${nav.isPanning ? "cursor-grabbing" : "cursor-grab"}`}
             >
-              <GraphGrid originX={nav.origin.x} originY={nav.origin.y} scale={nav.scale} width={VB_W} height={VB_H} />
-              <path d={fillPath} fill={COLORS.amber} opacity="0.28" stroke="none" />
+              <GraphGrid
+                originX={nav.origin.x}
+                originY={nav.origin.y}
+                scale={nav.scale}
+                width={VB_W}
+                height={VB_H}
+                axisColor="#ffffff"
+                axisWidth={2}
+              />
+              <path d={fillPath} fill={areaColor} opacity="0.35" stroke="none" />
               <line
                 x1={nav.toPxX(lower)}
                 y1={nav.toPxY(0)}
@@ -2482,7 +2577,8 @@ function IntegralModule() {
               <path d={curvePath} stroke={COLORS.amber} strokeWidth="2.4" fill="none" strokeLinejoin="round" />
             </svg>
             <div className="absolute bottom-1.5 left-2 right-2 flex items-center justify-between font-mono text-[9px] text-slate-400 pointer-events-none">
-              <span className="bg-slate-900/90 border border-slate-800 px-1.5 py-0.5 rounded-2xs text-emerald-400">
+              <span className="bg-slate-900/90 border border-slate-800 px-1.5 py-0.5 rounded-2xs flex items-center gap-1" style={{ color: areaColor }}>
+                <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: areaColor }} />
                 INTEGRAL REGION S
               </span>
               <span className="bg-slate-950/85 backdrop-blur-xs border border-slate-800/80 px-1.5 py-0.5 rounded-2xs text-slate-400">
@@ -2492,116 +2588,85 @@ function IntegralModule() {
           </div>
         </Panel>
 
-        {/* Textbook-grade formula presentation */}
-        <div className="bg-slate-900/80 border border-slate-800 rounded-xs p-3 font-mono shadow-sm">
-          <div className="flex items-center justify-between text-[9px] text-slate-400 uppercase tracking-widest border-b border-slate-800 pb-1 mb-2">
-            <span className="text-emerald-400 font-bold flex items-center gap-1.5">
-              <span className="w-1.5 h-1.5 bg-emerald-400 rounded-full"></span>
-              CÔNG THỨC TÍCH PHÂN & DIỆN TÍCH (NEWTON-LEIBNIZ)
+        {/* Tùy chọn màu sắc cho diện tích hình phẳng ở cửa sổ hiển thị bên trái */}
+        <div className="bg-slate-900/90 border border-slate-800 rounded-2xs px-3 py-2 flex flex-wrap items-center justify-between gap-2 shadow-xs">
+          <div className="flex items-center gap-2">
+            <span className="w-3 h-3 rounded-full border border-white/30 shrink-0" style={{ backgroundColor: areaColor }} />
+            <span className="text-[11px] font-mono text-slate-300 font-semibold tracking-wide">
+              MÀU SẮC DIỆN TÍCH HÌNH PHẲNG:
             </span>
-            <span className="text-slate-500">LỚP 12</span>
           </div>
-          <div className="space-y-2 py-1">
-            <div className="text-center text-amber-300 text-sm">
-              <MathDisplay tex={`y = f(x) = ${latexFormula}`} />
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-center pt-1 border-t border-slate-800/80">
-              <div className="bg-slate-950 p-2 rounded-2xs border border-slate-800">
-                <span className="text-[10px] text-cyan-400 block font-bold mb-1">TÍCH PHÂN XÁC ĐỊNH</span>
-                <MathDisplay tex={`\\int_{${fmt(lower)}}^{${fmt(upper)}} f(x)\\,dx \\approx ${fmt(signedIntegral, 3)}`} />
-              </div>
-              <div className="bg-slate-950 p-2 rounded-2xs border border-slate-800">
-                <span className="text-[10px] text-emerald-400 block font-bold mb-1">DIỆN TÍCH MIỀN PHẲNG</span>
-                <MathDisplay tex={`S = \\int_{${fmt(lower)}}^{${fmt(upper)}} |f(x)|\\,dx \\approx ${fmt(area, 3)}`} />
-              </div>
-            </div>
-            {signChanges && (
-              <div className="text-[10px] text-amber-400 font-mono text-center pt-1">
-                * Đồ thị cắt trục Ox trên đoạn [{fmt(lower)}; {fmt(upper)}], diện tích S được cộng theo trị tuyệt đối.
-              </div>
-            )}
+          <div className="flex items-center gap-1.5 flex-wrap">
+            {AREA_COLOR_PALETTE.map((item) => (
+              <button
+                key={item.hex}
+                type="button"
+                onClick={() => setAreaColor(item.hex)}
+                title={item.name}
+                className={`w-5 h-5 rounded-full transition-all border ${
+                  areaColor === item.hex
+                    ? "ring-2 ring-white scale-110 border-white shadow-sm"
+                    : "border-slate-700/80 opacity-75 hover:opacity-100 hover:scale-105"
+                }`}
+                style={{ backgroundColor: item.hex }}
+              />
+            ))}
           </div>
         </div>
+
+        <Note id="integral-hint">
+          Vùng tô màu là diện tích hình phẳng giới hạn bởi đồ thị hàm số y = f(x), trục hoành Ox và hai đường thẳng x = a, x = b. Tích phân xác định có dấu âm nếu đồ thị nằm phía dưới trục hoành Ox.
+        </Note>
       </div>
 
       <div className="md:col-span-4">
-        <Panel id="integral-controls-panel" title="CẬN TÍCH PHÂN & DẠNG HÀM" badge="INTEGRAL_PARAM">
-          <SectionLabel iconColor="bg-indigo-500">CHẾ ĐỘ NHẬP LIỆU</SectionLabel>
-          <div className="flex bg-slate-950 p-0.5 rounded-2xs border border-slate-800 mb-3">
-            <button
-              type="button"
-              id="btn-int-mode-std"
-              onClick={() => setInputMode("standard")}
-              className={`flex-1 py-1 text-[10px] font-mono rounded-2xs transition-colors ${
-                inputMode === "standard"
-                  ? "bg-emerald-500/20 text-emerald-300 font-bold border border-emerald-500/40"
-                  : "text-slate-400 hover:text-slate-200"
-              }`}
-            >
-              1. Dạng chuẩn
-            </button>
-            <button
-              type="button"
-              id="btn-int-mode-latex"
-              onClick={() => setInputMode("latex")}
-              className={`flex-1 py-1 text-[10px] font-mono rounded-2xs transition-colors ${
-                inputMode === "latex"
-                  ? "bg-amber-500/20 text-amber-300 font-bold border border-amber-500/40"
-                  : "text-slate-400 hover:text-slate-200"
-              }`}
-            >
-              2. Gõ biểu thức LaTeX
-            </button>
-          </div>
-
-          {inputMode === "latex" ? (
-            <LatexFunctionInput
-              id="input-int-latex"
-              value={customLatex}
-              onChange={setCustomLatex}
-              presets={[
-                { label: "−0.35x² + 3.2", latex: "-0.35x^2 + 3.2" },
-                { label: "4 − x²", latex: "4 - x^2" },
-                { label: "sin(x)", latex: "\\sin(x)" },
-                { label: "0.2x³ − x", latex: "0.2x^3 - x" },
-                { label: "x² − 2x", latex: "x^2 - 2x" },
-              ]}
-            />
-          ) : (
-            <>
-              <SectionLabel iconColor="bg-indigo-500">DẠNG HÀM</SectionLabel>
-              <ChipGroup
-                id="integral-type-chips"
-                value={type}
-                onChange={setType}
-                options={[
-                  { value: "quadratic", label: "Bậc hai" },
-                  { value: "trig", label: "Lượng giác" },
-                  { value: "cubic", label: "Bậc ba" },
-                ]}
-              />
-              <SectionLabel iconColor="bg-amber-500">HỘP NHẬP HỆ SỐ HÀM SỐ</SectionLabel>
-              {type === "quadratic" && (
-                <>
-                  <NumberInput id="input-ia" label="Hệ số a" value={a} min={-3} max={3} step={0.05} onChange={setA} color="amber" quickOptions={[-1, -0.35, 0.5, 1]} />
-                  <NumberInput id="input-ic" label="Hệ số c" value={c} min={-6} max={6} step={0.1} onChange={setC} color="emerald" quickOptions={[-2, 0, 2, 3.2, 4]} />
-                </>
-              )}
-              {type === "trig" && (
-                <NumberInput id="input-ita" label="Biên độ a" value={a} min={0.2} max={4} step={0.1} onChange={setA} color="amber" quickOptions={[0.5, 1, 1.5, 2]} />
-              )}
-              {type === "cubic" && (
-                <>
-                  <NumberInput id="input-ica" label="Hệ số a" value={a} min={-1} max={1} step={0.05} onChange={setA} color="amber" quickOptions={[-0.5, 0.2, 0.5]} />
-                  <NumberInput id="input-icc" label="Hệ số c" value={c} min={-4} max={4} step={0.1} onChange={setC} color="emerald" quickOptions={[-2, -1, 0, 1]} />
-                </>
-              )}
-            </>
-          )}
+        <Panel id="integral-controls-panel" title="THIẾT LẬP TÍCH PHÂN" badge="INTEGRAL_PARAM">
+          <SectionLabel iconColor="bg-amber-500">GÕ BIỂU THỨC LATEX</SectionLabel>
+          <LatexFunctionInput
+            id="input-int-latex"
+            label="BIỂU THỨC HÀM SỐ f(x)"
+            value={customLatex}
+            onChange={setCustomLatex}
+            hideSymbols={true}
+            hidePresets={true}
+          />
 
           <SectionLabel iconColor="bg-emerald-500">HỘP NHẬP CẬN TÍCH PHÂN [a; b]</SectionLabel>
-          <NumberInput id="input-lower" label="Cận dưới a" value={lo} min={-6} max={6} step={0.1} onChange={setLo} color="cyan" quickOptions={[-3, -2, -1, 0, 1]} />
-          <NumberInput id="input-upper" label="Cận trên b" value={hi} min={-6} max={6} step={0.1} onChange={setHi} color="emerald" quickOptions={[0, 1, 2, 3, 3.14]} />
+          <div className="grid grid-cols-2 gap-2">
+            <NumberInput id="input-lower" label="Cận dưới a" value={lo} min={-6} max={6} step={0.1} onChange={setLo} color="cyan" quickOptions={[-3, -2, -1, 0, 1]} />
+            <NumberInput id="input-upper" label="Cận trên b" value={hi} min={-6} max={6} step={0.1} onChange={setHi} color="emerald" quickOptions={[0, 1, 2, 3, 3.14]} />
+          </div>
+
+          {/* Textbook-grade formula presentation đưa sang cửa sổ bên phải */}
+          <div className="mt-3 bg-slate-950/90 border border-slate-800 rounded-xs p-3 font-mono shadow-sm">
+            <div className="flex items-center justify-between text-[9px] text-slate-400 uppercase tracking-widest border-b border-slate-800 pb-1 mb-2">
+              <span className="text-emerald-400 font-bold flex items-center gap-1.5">
+                <span className="w-1.5 h-1.5 bg-emerald-400 rounded-full"></span>
+                CÔNG THỨC TÍCH PHÂN & DIỆN TÍCH (NEWTON-LEIBNIZ)
+              </span>
+              <span className="text-slate-500">LỚP 12</span>
+            </div>
+            <div className="space-y-2 py-1">
+              <div className="text-center text-amber-300 text-sm overflow-x-auto py-0.5">
+                <MathDisplay tex={`y = f(x) = ${customLatex || "0"}`} />
+              </div>
+              <div className="space-y-2 pt-1 border-t border-slate-800/80">
+                <div className="bg-slate-900/90 p-2 rounded-2xs border border-slate-800 text-center overflow-x-auto">
+                  <span className="text-[10px] text-cyan-400 block font-bold mb-1">TÍCH PHÂN XÁC ĐỊNH</span>
+                  <MathDisplay tex={`\\int_{${fmt(lower)}}^{${fmt(upper)}} f(x)\\,dx \\approx ${fmt(signedIntegral, 3)}`} />
+                </div>
+                <div className="bg-slate-900/90 p-2 rounded-2xs border border-slate-800 text-center overflow-x-auto">
+                  <span className="text-[10px] text-emerald-400 block font-bold mb-1">DIỆN TÍCH MIỀN PHẲNG (S)</span>
+                  <MathDisplay tex={`S = \\int_{${fmt(lower)}}^{${fmt(upper)}} |f(x)|\\,dx \\approx ${fmt(area, 3)}`} />
+                </div>
+              </div>
+              {signChanges && (
+                <div className="text-[10px] text-amber-400 font-mono text-center pt-1">
+                  * Đồ thị cắt trục Ox trên đoạn [{fmt(lower)}; {fmt(upper)}], diện tích S được cộng theo trị tuyệt đối.
+                </div>
+              )}
+            </div>
+          </div>
         </Panel>
       </div>
     </div>
@@ -3218,19 +3283,9 @@ function RevolutionModule() {
           group.add(new THREE.Mesh(mainGeom, baseMat));
         }
 
-        // Equator & Meridian circles for crisp wireframe visualization
-        const eqPts: THREE.Vector3[] = [];
-        const xyPts: THREE.Vector3[] = [];
-        const yzPts: THREE.Vector3[] = [];
-        for (let i = 0; i <= 64; i++) {
-          const th = (i / 64) * Math.PI * 2;
-          eqPts.push(new THREE.Vector3(Math.cos(th) * r, 0, Math.sin(th) * r));
-          xyPts.push(new THREE.Vector3(Math.cos(th) * r, Math.sin(th) * r, 0));
-          yzPts.push(new THREE.Vector3(0, Math.sin(th) * r, Math.cos(th) * r));
-        }
-        group.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(eqPts), new THREE.LineBasicMaterial({ color: new THREE.Color(COLORS.amber), linewidth: 2 })));
-        group.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(xyPts), new THREE.LineBasicMaterial({ color: new THREE.Color(COLORS.cyan), linewidth: 1.5 })));
-        group.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(yzPts), new THREE.LineBasicMaterial({ color: new THREE.Color(COLORS.emerald), linewidth: 1.5 })));
+        // Center marker O
+        const centerMarker = new THREE.Mesh(new THREE.SphereGeometry(0.045, 12, 12), new THREE.MeshBasicMaterial({ color: new THREE.Color(COLORS.amber) }));
+        group.add(centerMarker);
 
         // Axis line (Trục đường kính thẳng đứng)
         const axisGeom = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0, -r, 0), new THREE.Vector3(0, r, 0)]);
@@ -3277,14 +3332,6 @@ function RevolutionModule() {
         }
         group.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(botPts), new THREE.LineBasicMaterial({ color: new THREE.Color(COLORS.emerald), linewidth: 2 })));
 
-        // Generatrices (4 đường sinh)
-        const genAngles = [0, Math.PI / 2, Math.PI, (3 * Math.PI) / 2];
-        for (const ga of genAngles) {
-          const pBot = new THREE.Vector3(Math.cos(ga) * radiusBottom, -h / 2, Math.sin(ga) * radiusBottom);
-          const pTop = new THREE.Vector3(Math.cos(ga) * radiusTop, h / 2, Math.sin(ga) * radiusTop);
-          group.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints([pBot, pTop]), new THREE.LineBasicMaterial({ color: new THREE.Color(COLORS.amber), linewidth: 1.5 })));
-        }
-
         // Axis line
         const axisGeom = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0, -h / 2, 0), new THREE.Vector3(0, h / 2, 0)]);
         const axisMat = new THREE.LineDashedMaterial({ color: new THREE.Color(COLORS.rose), dashSize: 0.15, gapSize: 0.08 });
@@ -3318,15 +3365,8 @@ function RevolutionModule() {
         }
         group.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(botPts), new THREE.LineBasicMaterial({ color: new THREE.Color(COLORS.emerald), linewidth: 2 })));
 
-        // Generatrices (4 đường sinh từ đỉnh S)
-        const apexPt = new THREE.Vector3(0, h / 2, 0);
-        const genAngles = [0, Math.PI / 2, Math.PI, (3 * Math.PI) / 2];
-        for (const ga of genAngles) {
-          const pBot = new THREE.Vector3(Math.cos(ga) * radiusBottom, -h / 2, Math.sin(ga) * radiusBottom);
-          group.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints([apexPt, pBot]), new THREE.LineBasicMaterial({ color: new THREE.Color(COLORS.amber), linewidth: 1.5 })));
-        }
-
         // Axis line
+        const apexPt = new THREE.Vector3(0, h / 2, 0);
         const axisGeom = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0, -h / 2, 0), apexPt]);
         const axisMat = new THREE.LineDashedMaterial({ color: new THREE.Color(COLORS.rose), dashSize: 0.15, gapSize: 0.08 });
         const axisLine = new THREE.Line(axisGeom, axisMat);
@@ -3570,19 +3610,6 @@ function RevolutionModule() {
             <div className="flex items-center gap-1.5 flex-wrap">
               <button
                 type="button"
-                id="btn-rev-toggle-faces"
-                onClick={() => setShowFaces(!showFaces)}
-                className={`px-2 py-0.5 border rounded-2xs text-[10px] font-mono transition-colors active:scale-95 ${
-                  showFaces
-                    ? "bg-amber-500/20 text-amber-300 border-amber-500/50 font-bold"
-                    : "bg-slate-800 hover:bg-slate-700 text-slate-400 border-slate-700"
-                }`}
-                title="Ẩn hoặc hiện màu sắc các mặt khối tròn xoay (Khung dây / Tô màu 3D)"
-              >
-                {showFaces ? "🎨 MÀU SẮC: HIỆN" : "▢ MÀU SẮC: ẨN (KHUNG DÂY)"}
-              </button>
-              <button
-                type="button"
                 id="btn-rev-autorotate"
                 onClick={() => toggleAutoRotate()}
                 className={`px-2 py-0.5 border rounded-2xs text-[10px] font-mono transition-colors active:scale-95 ${
@@ -3614,12 +3641,8 @@ function RevolutionModule() {
               <span className="bg-slate-900/90 border border-slate-800 text-cyan-400 px-1.5 py-0.5 rounded-2xs">
                 XOAY 360° MỌI HƯỚNG
               </span>
-              <span className={`border px-1.5 py-0.5 rounded-2xs font-mono text-[9px] ${
-                showFaces
-                  ? "bg-amber-950/90 border-amber-800/80 text-amber-300"
-                  : "bg-slate-900/90 border-slate-700 text-slate-400"
-              }`}>
-                {showFaces ? `MÀU MẶT: BẬT (${fmt(faceOpacity * 100, 0)}%)` : "MÀU MẶT: ẨN (KHUNG DÂY)"}
+              <span className="bg-amber-950/90 border border-amber-800/80 text-amber-300 px-1.5 py-0.5 rounded-2xs font-mono text-[9px]">
+                MÀU MẶT 3D ({fmt(faceOpacity * 100, 0)}%)
               </span>
               <span className="bg-slate-900/90 border border-slate-800 text-slate-300 px-1.5 py-0.5 rounded-2xs">
                 CUỘN ĐỂ ZOOM
@@ -3700,20 +3723,13 @@ function RevolutionModule() {
             ]}
           />
 
-          <SectionLabel iconColor="bg-amber-500">HIỂN THỊ & MÀU SẮC ĐỐI TƯỢNG // OBJECT COLOR</SectionLabel>
+          <SectionLabel iconColor="bg-amber-500">MÀU SẮC BỀ MẶT 3D // OBJECT COLOR</SectionLabel>
           <div className="flex flex-col gap-2 p-2.5 bg-slate-900/70 border border-slate-800/90 rounded-2xs mb-3">
-            <ToggleRow
-              id="toggle-rev-show-faces"
-              label="Hiển thị màu sắc các mặt (Tô màu 3D ⇄ Khung dây)"
-              checked={showFaces}
-              onChange={setShowFaces}
-            />
-            {showFaces && (
-              <div className="space-y-2 pt-1 border-t border-slate-800/70">
-                <div className="flex items-center justify-between text-[10px] text-slate-400 font-mono">
-                  <span>Độ đậm màu sắc (Opacity):</span>
-                  <span className="text-amber-400 font-bold">{fmt(faceOpacity * 100, 0)}%</span>
-                </div>
+            <div className="space-y-2">
+              <div className="flex items-center justify-between text-[10px] text-slate-400 font-mono">
+                <span>Độ đậm màu sắc (Opacity):</span>
+                <span className="text-amber-400 font-bold">{fmt(faceOpacity * 100, 0)}%</span>
+              </div>
                 <div className="grid grid-cols-4 gap-1">
                   {[
                     { val: 0.2, label: "20% Mờ" },
@@ -3766,8 +3782,7 @@ function RevolutionModule() {
                   )}
                 </div>
               </div>
-            )}
-          </div>
+            </div>
 
           <SectionLabel iconColor="bg-amber-500">TRẢI PHẲNG HÌNH HỌC // NET UNFOLDING</SectionLabel>
           <div className="flex flex-col gap-2 p-2.5 bg-slate-900/70 border border-slate-800/90 rounded-2xs mb-2">
@@ -4053,7 +4068,7 @@ export default function App() {
           <div className="flex items-center gap-2">
             <div className="w-2.5 h-2.5 bg-emerald-500 rounded-full shadow-[0_0_8px_rgba(16,185,129,0.7)] animate-pulse"></div>
             <span className="font-bold text-slate-100 text-xs sm:text-sm tracking-tight font-mono">
-              MATH.SYS // GDPT-2018 CORE
+              CONG CU TOAN HVT
             </span>
           </div>
           <div className="h-4 w-px bg-slate-800 mx-1 hidden sm:block"></div>

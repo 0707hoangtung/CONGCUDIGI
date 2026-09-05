@@ -2600,19 +2600,6 @@ export function PolyhedraModule() {
               )}
               <button
                 type="button"
-                id="btn-poly-toggle-faces"
-                onClick={() => setShowFaces(!showFaces)}
-                className={`px-2 py-0.5 border rounded-2xs text-[10px] font-mono transition-colors active:scale-95 ${
-                  showFaces
-                    ? "bg-amber-500/20 text-amber-300 border-amber-500/50"
-                    : "bg-slate-800 hover:bg-slate-700 text-slate-400 border-slate-700"
-                }`}
-                title="Ẩn hoặc hiện màu sắc các mặt của khối đa diện (Wireframe / Tô màu 3D)"
-              >
-                {showFaces ? "🎨 MÀU MẶT: BẬT" : "▢ MÀU MẶT: TẮT (KHUNG DÂY)"}
-              </button>
-              <button
-                type="button"
                 id="btn-poly-autorotate"
                 onClick={toggleAutoRotate}
                 className={`px-2 py-0.5 border rounded-2xs text-[10px] font-mono transition-colors active:scale-95 ${
@@ -2647,12 +2634,8 @@ export function PolyhedraModule() {
               <span className="bg-slate-900/90 border border-slate-800 text-slate-300 px-1.5 py-0.5 rounded-2xs">
                 CUỘN CHUỘT: ZOOM
               </span>
-              <span className={`border px-1.5 py-0.5 rounded-2xs font-mono text-[9px] ${
-                showFaces
-                  ? "bg-amber-950/90 border-amber-800/80 text-amber-300"
-                  : "bg-slate-900/90 border-slate-700 text-slate-400"
-              }`}>
-                {showFaces ? `MẶT: TÔ MÀU (${fmt(faceOpacity * 100, 0)}%)` : "MẶT: KHUNG DÂY"}
+              <span className="bg-amber-950/90 border border-amber-800/80 text-amber-300 border px-1.5 py-0.5 rounded-2xs font-mono text-[9px]">
+                MẶT TÔ MÀU 3D ({fmt(faceOpacity * 100, 0)}%)
               </span>
               <span className="bg-slate-900/90 border border-slate-800 text-emerald-400 px-1.5 py-0.5 rounded-2xs">
                 {geometryData.shapeDesc}
@@ -2757,7 +2740,7 @@ export function PolyhedraModule() {
                   : "text-slate-400 hover:text-slate-200"
               }`}
             >
-              3. Thiết diện & Cắt
+              3. Trải phẳng
             </button>
           </div>
 
@@ -3066,43 +3049,35 @@ export function PolyhedraModule() {
                 </>
               )}
 
-              {/* FACE SHADING & WIREFRAME TOGGLE */}
-              <SectionLabel iconColor="bg-amber-500">HIỂN THỊ MÀU SẮC CÁC MẶT // FACE SHADING</SectionLabel>
-              <ToggleRow
-                id="toggle-poly-show-faces-tab"
-                label="Hiển thị màu sắc các mặt khối đa diện"
-                checked={showFaces}
-                onChange={setShowFaces}
-              />
-              {showFaces && (
-                <div className="mb-3 p-2 bg-slate-950/60 border border-slate-800/80 rounded-2xs">
-                  <div className="flex items-center justify-between text-[10px] text-slate-400 mb-1.5 font-mono">
-                    <span>Độ đậm màu sắc mặt:</span>
-                    <span className="text-amber-400 font-bold">{fmt(faceOpacity * 100, 0)}%</span>
-                  </div>
-                  <div className="grid grid-cols-4 gap-1">
-                    {[
-                      { val: 0.2, label: "20% Mờ" },
-                      { val: 0.45, label: "45% Nhẹ" },
-                      { val: 0.65, label: "65% Vừa" },
-                      { val: 0.88, label: "88% Đậm" },
-                    ].map((item) => (
-                      <button
-                        key={item.val}
-                        type="button"
-                        onClick={() => setFaceOpacity(item.val)}
-                        className={`py-1 rounded-2xs text-[9px] font-mono border transition-colors ${
-                          Math.abs(faceOpacity - item.val) < 0.08
-                            ? "bg-amber-500/20 text-amber-300 border-amber-500/50 font-bold"
-                            : "bg-slate-900 hover:bg-slate-800 text-slate-400 border-slate-800"
-                        }`}
-                      >
-                        {item.label}
-                      </button>
-                    ))}
-                  </div>
+              {/* FACE SHADING */}
+              <SectionLabel iconColor="bg-amber-500">MÀU SẮC CÁC MẶT 3D // FACE SHADING</SectionLabel>
+              <div className="mb-3 p-2 bg-slate-950/60 border border-slate-800/80 rounded-2xs">
+                <div className="flex items-center justify-between text-[10px] text-slate-400 mb-1.5 font-mono">
+                  <span>Độ đậm màu sắc mặt:</span>
+                  <span className="text-amber-400 font-bold">{fmt(faceOpacity * 100, 0)}%</span>
                 </div>
-              )}
+                <div className="grid grid-cols-4 gap-1">
+                  {[
+                    { val: 0.2, label: "20% Mờ" },
+                    { val: 0.45, label: "45% Nhẹ" },
+                    { val: 0.65, label: "65% Vừa" },
+                    { val: 0.88, label: "88% Đậm" },
+                  ].map((item) => (
+                    <button
+                      key={item.val}
+                      type="button"
+                      onClick={() => setFaceOpacity(item.val)}
+                      className={`py-1 rounded-2xs text-[9px] font-mono border transition-colors ${
+                        Math.abs(faceOpacity - item.val) < 0.08
+                          ? "bg-amber-500/20 text-amber-300 border-amber-500/50 font-bold"
+                          : "bg-slate-900 hover:bg-slate-800 text-slate-400 border-slate-800"
+                      }`}
+                    >
+                      {item.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
             </div>
           )}
 
