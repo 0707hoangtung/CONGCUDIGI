@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import * as THREE from "three";
-import { Eye, EyeOff, Grid, Move, RotateCcw } from "lucide-react";
+import { Eye, EyeOff, Grid, Move, RotateCcw, RotateCw } from "lucide-react";
 
 interface IntegralRevolution3DProps {
   fn: (x: number) => number;
@@ -70,6 +70,11 @@ export default function IntegralRevolution3D({
   const [mouseMode, setMouseMode] = useState<"rotate" | "pan">("rotate");
   const mouseModeRef = useRef<"rotate" | "pan">("rotate");
   mouseModeRef.current = mouseMode;
+
+  // Tự xoay: khối tròn xoay tự xoay liên tục tại chỗ quanh nó
+  const [isAutoRotating, setIsAutoRotating] = useState<boolean>(false);
+  const isAutoRotatingRef = useRef<boolean>(false);
+  isAutoRotatingRef.current = isAutoRotating;
 
   // Keep angle ref up-to-date for animation loop
   const angleRef = useRef<number>(0);
@@ -337,6 +342,11 @@ export default function IntegralRevolution3D({
     let reqId = 0;
     const renderLoop = () => {
       reqId = requestAnimationFrame(renderLoop);
+      if (isAutoRotatingRef.current && groupRef.current) {
+        // Tự xoay khối tròn xoay tại vị trí hiện tại quanh trục thẳng đứng Y
+        const qY = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), 0.008);
+        groupRef.current.quaternion.premultiply(qY);
+      }
       if (rendererRef.current && sceneRef.current && cameraRef.current) {
         rendererRef.current.render(sceneRef.current, cameraRef.current);
       }
@@ -932,6 +942,20 @@ export default function IntegralRevolution3D({
 
         {/* Action buttons on header */}
         <div className="flex items-center gap-1.5">
+          {/* Nút TỰ XOAY quanh nó tại chỗ */}
+          <button
+            type="button"
+            onClick={() => setIsAutoRotating((r) => !r)}
+            className={`px-2 py-0.5 border rounded-2xs text-[10px] font-mono transition-colors active:scale-95 font-bold flex items-center gap-1 ${
+              isAutoRotating
+                ? "bg-cyan-500 text-slate-950 border-cyan-400 shadow-xs"
+                : "bg-cyan-500/20 text-cyan-300 border-cyan-500/50 hover:bg-cyan-500/30"
+            }`}
+            title="Nhấn để khối tròn xoay tự xoay liên tục quanh nó tại chỗ cho đến khi nhấn lại (quan sát 360 độ)"
+          >
+            <RotateCw className={`w-3 h-3 ${isAutoRotating ? "animate-spin" : ""}`} />
+            <span>{isAutoRotating ? "⏸ DỪNG TỰ XOAY" : "▶ TỰ XOAY"}</span>
+          </button>
           <button
             type="button"
             onClick={toggleRotate}
@@ -1003,6 +1027,11 @@ export default function IntegralRevolution3D({
           <span className="bg-slate-900/90 border border-slate-800 text-amber-300/90 px-1.5 py-0.5 rounded-2xs">
             {mouseMode === "pan" ? "✋ ĐANG Ở CHẾ ĐỘ DÊ / KÉO KHỐI" : "✋ MẸO: CHUỘT PHẢI HOẶC GIỮ SHIFT ĐỂ DÊ KHỐI"}
           </span>
+          {isAutoRotating && (
+            <span className="bg-cyan-950/90 border border-cyan-500/70 text-cyan-300 px-1.5 py-0.5 rounded-2xs font-bold animate-pulse">
+              ⟳ ĐANG TỰ XOAY QUANH NÓ (360°)
+            </span>
+          )}
         </div>
 
         {/* Bottom Quick Perspective Bar & Mouse Mode Switch */}
@@ -1075,14 +1104,30 @@ export default function IntegralRevolution3D({
             </div>
           </div>
 
-          <button
-            type="button"
-            onClick={resetView}
-            className="px-2 py-0.5 bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 rounded-2xs text-[9px] font-mono transition-colors active:scale-95"
-            title="Đưa khối 3D về vị trí chính giữa và góc phối cảnh chuẩn"
-          >
-            CĂN GIỮA // RESET
-          </button>
+          <div className="flex items-center gap-1.5">
+            <button
+              type="button"
+              onClick={() => setIsAutoRotating((r) => !r)}
+              className={`px-2 py-0.5 rounded-2xs text-[9px] font-mono transition-colors active:scale-95 border flex items-center gap-1 font-bold ${
+                isAutoRotating
+                  ? "bg-cyan-500 text-slate-950 border-cyan-400 shadow-xs"
+                  : "bg-slate-800 hover:bg-slate-700 text-cyan-300 border-cyan-500/40"
+              }`}
+              title="Bật / Tắt chế độ tự xoay khối tròn xoay tại chỗ liên tục để quan sát toàn diện 360 độ"
+            >
+              <RotateCw className={`w-2.5 h-2.5 ${isAutoRotating ? "animate-spin" : ""}`} />
+              <span>{isAutoRotating ? "DỪNG TỰ XOAY" : "TỰ XOAY"}</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={resetView}
+              className="px-2 py-0.5 bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 rounded-2xs text-[9px] font-mono transition-colors active:scale-95"
+              title="Đưa khối 3D về vị trí chính giữa và góc phối cảnh chuẩn"
+            >
+              CĂN GIỮA // RESET
+            </button>
+          </div>
         </div>
       </div>
 
