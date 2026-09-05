@@ -1,12 +1,15 @@
 import React, { useState, useRef, useEffect, useMemo, useCallback } from "react";
 import * as THREE from "three";
 import katex from "katex";
-import { Maximize2, Minimize2, Download, Sun, Moon } from "lucide-react";
+import { Maximize2, Minimize2, Download, Sun, Moon, Shield, LogOut, UserCheck } from "lucide-react";
 import { PolyhedraModule } from "./components/PolyhedraModule";
 import { FunctionModule } from "./components/FunctionModule";
 import IntegralRevolution3D from "./components/IntegralRevolution3D";
 import { downloadSvgAsPng, downloadCanvas3D } from "./utils/exportImage";
 import { useTheme, ThemeColors } from "./context/ThemeContext";
+import { useAuth } from "./context/AuthContext";
+import { LoginScreen } from "./components/LoginScreen";
+import { AdminManagementModal } from "./components/AdminManagementModal";
 
 /* ============================================================
    DESIGN TOKENS — ADAPTIVE CONSOLE THEME (DARK / LIGHT)
@@ -4081,6 +4084,9 @@ export default function App() {
   const { theme, isDark, colors, toggleTheme, setTheme } = useTheme();
   setGlobalThemeColors(colors);
 
+  const { user, isAuthenticated, isAdmin, isMember, logout, isLoading } = useAuth();
+  const [isAdminModalOpen, setIsAdminModalOpen] = useState<boolean>(false);
+
   const [activeId, setActiveId] = useState("function");
   const [currentTime, setCurrentTime] = useState("");
   const active = MODULES.find((m) => m.id === activeId) || MODULES[0];
@@ -4096,6 +4102,20 @@ export default function App() {
     const timer = setInterval(updateTime, 1000);
     return () => clearInterval(timer);
   }, []);
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center text-slate-300 font-mono gap-3 select-none">
+        <div className="w-8 h-8 border-3 border-amber-500 border-t-transparent rounded-full animate-spin"></div>
+        <div className="text-xs text-slate-400">ĐANG XÁC THỰC BẢN QUYỀN HỆ THỐNG TOÁN HỌC HVT...</div>
+      </div>
+    );
+  }
+
+  // Khóa toàn bộ ứng dụng nếu chưa đăng nhập đúng mật khẩu
+  if (!isAuthenticated) {
+    return <LoginScreen />;
+  }
 
   return (
     <div
@@ -4172,6 +4192,47 @@ export default function App() {
           <div className="hidden sm:flex flex-col items-end">
             <span className="text-slate-500 uppercase leading-none text-[8px] tracking-wider">KERNEL</span>
             <span className="text-emerald-400 font-bold">v4.2.0-MATH</span>
+          </div>
+
+          {/* USER AUTH & ADMIN MANAGEMENT CONTROLS */}
+          <div className="flex items-center gap-2 border-l border-slate-800 pl-2.5 sm:pl-3">
+            {isAdmin ? (
+              <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  id="admin-manage-members-btn"
+                  onClick={() => setIsAdminModalOpen(true)}
+                  className="px-2 sm:px-2.5 py-1 bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/60 rounded-xs text-[10px] sm:text-[10.5px] font-bold flex items-center gap-1.5 transition-all shadow-[0_0_10px_rgba(245,158,11,0.2)] active:scale-95 cursor-pointer"
+                  title="Mở Bảng Quản lý Thành viên (Chỉ dành cho ADMIN)"
+                >
+                  <Shield className="w-3.5 h-3.5 text-amber-400" />
+                  <span className="hidden sm:inline">QUẢN LÝ THÀNH VIÊN</span>
+                  <span className="sm:hidden">ADMIN</span>
+                </button>
+              </div>
+            ) : (
+              <div className="flex items-center gap-1.5 bg-slate-800/90 border border-slate-700/80 px-2 py-0.5 rounded-xs">
+                <UserCheck className="w-3 h-3 text-cyan-400" />
+                <span className="text-[10px] text-cyan-300 font-bold max-w-[110px] sm:max-w-[150px] truncate">
+                  {user?.fullName || user?.username}
+                </span>
+                <span className="text-[8.5px] bg-cyan-950 text-cyan-300 border border-cyan-700/50 px-1 rounded font-mono">
+                  THÀNH VIÊN
+                </span>
+              </div>
+            )}
+
+            {/* Logout Button */}
+            <button
+              type="button"
+              id="auth-logout-btn"
+              onClick={logout}
+              className="p-1 sm:px-2 sm:py-0.5 bg-slate-800/80 hover:bg-rose-950/60 text-slate-400 hover:text-rose-300 border border-slate-700/80 hover:border-rose-700/60 rounded-xs text-[10px] transition-colors flex items-center gap-1 cursor-pointer"
+              title="Đăng xuất khỏi hệ thống"
+            >
+              <LogOut className="w-3 h-3" />
+              <span className="hidden md:inline">ĐĂNG XUẤT</span>
+            </button>
           </div>
         </div>
       </header>
@@ -4257,6 +4318,14 @@ export default function App() {
           <ActiveComponent key={active.id} />
         </main>
       </div>
+
+      {/* MODAL QUẢN TRỊ VIÊN // QUẢN LÝ THÀNH VIÊN (CHỈ ADMIN MỚI ĐƯỢC PHÉP TRUY CẬP) */}
+      {isAdmin && (
+        <AdminManagementModal
+          isOpen={isAdminModalOpen}
+          onClose={() => setIsAdminModalOpen(false)}
+        />
+      )}
     </div>
   );
 }

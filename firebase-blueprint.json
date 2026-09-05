@@ -1,0 +1,29 @@
+{
+  "entities": {
+    "system_config": {
+      "title": "Cấu hình hệ thống và Quản trị",
+      "description": "Lưu trữ thông tin mật khẩu Admin tối cao và cấu hình hệ thống",
+      "properties": {
+        "adminPassword": { "type": "string" },
+        "updatedAt": { "type": "string" },
+        "adminUsername": { "type": "string" }
+      }
+    },
+    "members": {
+      "title": "Danh sách thành viên",
+      "description": "Thông tin tài khoản thành viên do Admin tạo và cấp phát",
+      "properties": {
+        "username": { "type": "string" },
+        "password": { "type": "string" },
+        "fullName": { "type": "string" },
+        "email": { "type": "string" },
+        "phone": { "type": "string" },
+        "role": { "type": "string" },
+        "status": { "type": "string" },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" },
+        "notes": { "type": "string" }
+      }
+    }
+  }
+}
